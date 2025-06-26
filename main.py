@@ -3,26 +3,25 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 import discord
-from discord import app_commands
+from discord.ext import commands
 from aiohttp import web
 
-# Load .env and token
-print("Current working directory:", Path('.').resolve())
+# Load token from .env
 dotenv_path = Path('.') / '.env'
-print("Loading .env from:", dotenv_path.resolve())
 load_dotenv(dotenv_path)
 token = os.getenv("DISCORD_TOKEN")
-print("DISCORD_TOKEN after loading .env:", token)
 
-# Set up intents
+# Set intents
 intents = discord.Intents.default()
+intents.message_content = True
 intents.guilds = True
 
-# Client and command tree
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+# Create a bot instance
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Embed function
+# Create slash command bot instance
+slash = discord.Bot(intents=intents)
+
 async def send_rules_embed(channel):
     embed = discord.Embed(
         title="📜 Server Rules",
@@ -41,28 +40,27 @@ async def send_rules_embed(channel):
         color=discord.Color.blue()
     )
     embed.set_footer(text="React below to agree to the rules")
-
     message = await channel.send(embed=embed)
     await message.add_reaction("✅")
 
-# Slash command
-@tree.command(name="rules", description="Post the server rules embed.")
-async def rules_command(interaction: discord.Interaction):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("🚫 You need Administrator permissions to use this command.", ephemeral=True)
+# Slash command: /rules
+@slash.slash_command(description="Send the server rules")
+async def rules(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.respond("🚫 You need Administrator permissions to use this command.", ephemeral=True)
         return
 
-    await interaction.response.defer(ephemeral=False)
-    await send_rules_embed(interaction.channel)
+    await send_rules_embed(ctx.channel)
+    await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# on_ready
-@client.event
+# Event when the bot is ready
+@slash.event
 async def on_ready():
-    await tree.sync()
-    print(f"Logged in as {client.user}")
-    await client.change_presence(activity=discord.Streaming(name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
+    print(f"Logged in as {slash.user}")
+    await slash.change_presence(activity=discord.Streaming(
+        name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
 
-# Fly.io web handler
+# Aiohttp server to keep Fly.io happy
 async def handle(request):
     return web.Response(text="Bot is running")
 
@@ -76,10 +74,10 @@ async def start_web_server():
     await site.start()
     print(f"Web server running on port {port}")
 
-# Main function
+# Start both web server and Discord bot
 async def main():
     await start_web_server()
-    await client.start(token)
+    await slash.start(token)
 
 if __name__ == "__main__":
     asyncio.run(main())
