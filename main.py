@@ -3,7 +3,6 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 import discord
-from discord.ext import commands
 from aiohttp import web
 
 # Load token from .env
@@ -16,11 +15,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-# Create a bot instance
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Create slash command bot instance
-slash = discord.Bot(intents=intents)
+# Create the bot instance (slash commands only)
+bot = discord.Bot(intents=intents)
 
 async def send_rules_embed(channel):
     embed = discord.Embed(
@@ -44,7 +40,7 @@ async def send_rules_embed(channel):
     await message.add_reaction("✅")
 
 # Slash command: /rules
-@slash.slash_command(description="Send the server rules")
+@bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
         await ctx.respond("🚫 You need Administrator permissions to use this command.", ephemeral=True)
@@ -54,10 +50,10 @@ async def rules(ctx: discord.ApplicationContext):
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
 # Event when the bot is ready
-@slash.event
+@bot.event
 async def on_ready():
-    print(f"Logged in as {slash.user}")
-    await slash.change_presence(activity=discord.Streaming(
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    await bot.change_presence(activity=discord.Streaming(
         name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
 
 # Aiohttp server to keep Fly.io happy
@@ -77,7 +73,7 @@ async def start_web_server():
 # Start both web server and Discord bot
 async def main():
     await start_web_server()
-    await slash.start(token)
+    await bot.start(token)
 
 if __name__ == "__main__":
     asyncio.run(main())
