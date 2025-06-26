@@ -18,20 +18,11 @@ token = os.getenv("DISCORD_TOKEN")
 print("DISCORD_TOKEN after loading .env:", token, type(token))
 
 intents = discord.Intents.default()
+intents.messages = True  # Needed to process on_message
+intents.guilds = True  # For permission checks
 client = discord.Client(intents=intents)
 
-# Replace this with the actual channel ID where you want to send the rules
-TARGET_CHANNEL_ID = 1387605183109795944  # <- Replace with your channel ID
-
-# Flag to make sure the rules aren't sent more than once
-rules_sent = False
-
-async def send_rules_embed():
-    channel = client.get_channel(TARGET_CHANNEL_ID)
-    if not channel:
-        print("Failed to get the target channel. Is the bot in the server?")
-        return
-
+async def send_rules_embed(channel):
     embed = discord.Embed(
         title="📜 Server Rules",
         description=(
@@ -51,19 +42,30 @@ async def send_rules_embed():
     embed.set_footer(text="React below to agree to the rules")
 
     message = await channel.send(embed=embed)
-    await message.add_reaction("✅")  # For agreement reaction
+    await message.add_reaction("✅")
 
 @client.event
 async def on_ready():
-    global rules_sent
     print(f"Logged in as {client.user}")
     await client.change_presence(activity=discord.Streaming(name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
 
-    if not rules_sent:
-        await send_rules_embed()
-        rules_sent = True
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
 
-# Minimal aiohttp web server handler to keep Fly.io happy
+    if message.content.lower() == "!rules":
+        if not message.guild:
+            await message.channel.send("This command can only be used in a server.")
+            return
+
+        if not message.author.guild_permissions.administrator:
+            await message.channel.send("🚫 You need Administrator permissions to use this command.")
+            return
+
+        await send_rules_embed(message.channel)
+
+# Minimal aiohttp web server to keep Fly.io happy
 async def handle(request):
     return web.Response(text="Bot is running")
 
