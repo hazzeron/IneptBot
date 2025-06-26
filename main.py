@@ -18,8 +18,8 @@ token = os.getenv("DISCORD_TOKEN")
 print("DISCORD_TOKEN after loading .env:", token, type(token))
 
 intents = discord.Intents.default()
-intents.messages = True  # Needed to process on_message
-intents.guilds = True  # For permission checks
+intents.messages = True  # Needed to receive message events
+intents.guilds = True    # Needed for guild and permission info
 client = discord.Client(intents=intents)
 
 async def send_rules_embed(channel):
@@ -51,14 +51,18 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
+    # Ignore messages from bots (including self)
+    if message.author.bot:
         return
 
+    # Only respond to "!rules" command
     if message.content.lower() == "!rules":
+        # Ensure command is used in a guild text channel
         if not message.guild:
             await message.channel.send("This command can only be used in a server.")
             return
 
+        # Check if author has Administrator permissions
         if not message.author.guild_permissions.administrator:
             await message.channel.send("🚫 You need Administrator permissions to use this command.")
             return
