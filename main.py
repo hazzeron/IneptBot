@@ -1,7 +1,9 @@
 import os
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 import discord
+from aiohttp import web
 
 # Debug prints to confirm dotenv loading and token
 print("Current working directory:", Path('.').resolve())
@@ -61,6 +63,24 @@ async def on_ready():
         await send_rules_embed()
         rules_sent = True
 
-# test
+# Minimal aiohttp web server handler to keep Fly.io happy
+async def handle(request):
+    return web.Response(text="Bot is running")
 
-client.run(token)
+async def start_web_server():
+    app = web.Application()
+    app.add_routes([web.get('/', handle)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv('PORT', 8080))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"Web server running on port {port}")
+
+# Main async function to start both web server and Discord bot
+async def main():
+    await start_web_server()
+    await client.start(token)
+
+if __name__ == "__main__":
+    asyncio.run(main())

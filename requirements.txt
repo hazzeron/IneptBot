@@ -3,3 +3,4 @@ waitress==2.1.2
 Flask==2.2.3
 gunicorn
 python-dotenv
+aiohttp
