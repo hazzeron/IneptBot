@@ -10,7 +10,7 @@ primary_region = 'lhr'
 [processes]
 app = "python main.py"
 
-[http_service]
+[services]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
