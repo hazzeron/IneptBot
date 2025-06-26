@@ -1,3 +1,8 @@
+# fly.toml app configuration file generated for ineptbot on 2025-06-26T03:47:58+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'ineptbot'
 primary_region = 'lhr'
 
@@ -7,10 +12,7 @@ primary_region = 'lhr'
 [env]
   PORT = '8080'
 
-[processes]
-app = "python main.py"
-
-[services]
+[http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
