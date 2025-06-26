@@ -61,4 +61,6 @@ async def on_ready():
         await send_rules_embed()
         rules_sent = True
 
+# test
+
 client.run(token)
