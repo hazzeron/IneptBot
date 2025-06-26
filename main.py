@@ -15,10 +15,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-# Create the bot instance (slash commands only)
+# Create the bot instance using py-cord's discord.Bot
 bot = discord.Bot(intents=intents)
 
-async def send_rules_embed(channel):
+async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
         title="📜 Server Rules",
         description=(
