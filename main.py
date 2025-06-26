@@ -18,6 +18,7 @@ token = os.getenv("DISCORD_TOKEN")
 print("DISCORD_TOKEN after loading .env:", token, type(token))
 
 intents = discord.Intents.default()
+intents.message_content = True
 intents.messages = True  # Needed to receive message events
 intents.guilds = True    # Needed for guild and permission info
 client = discord.Client(intents=intents)
@@ -51,6 +52,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    print(f"Message received: {message.content} from {message.author}")  # Add this
     # Ignore messages from bots (including self)
     if message.author.bot:
         return
