@@ -3,26 +3,26 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 import discord
+from discord import app_commands
 from aiohttp import web
 
-# Debug prints to confirm dotenv loading and token
+# Load .env and token
 print("Current working directory:", Path('.').resolve())
-
 dotenv_path = Path('.') / '.env'
 print("Loading .env from:", dotenv_path.resolve())
-
-loaded = load_dotenv(dotenv_path)
-print("load_dotenv returned:", loaded)
-
+load_dotenv(dotenv_path)
 token = os.getenv("DISCORD_TOKEN")
-print("DISCORD_TOKEN after loading .env:", token, type(token))
+print("DISCORD_TOKEN after loading .env:", token)
 
+# Set up intents
 intents = discord.Intents.default()
-intents.message_content = True
-intents.messages = True  # Needed to receive message events
-intents.guilds = True    # Needed for guild and permission info
-client = discord.Client(intents=intents)
+intents.guilds = True
 
+# Client and command tree
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
+# Embed function
 async def send_rules_embed(channel):
     embed = discord.Embed(
         title="📜 Server Rules",
@@ -45,33 +45,24 @@ async def send_rules_embed(channel):
     message = await channel.send(embed=embed)
     await message.add_reaction("✅")
 
+# Slash command
+@tree.command(name="rules", description="Post the server rules embed.")
+async def rules_command(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("🚫 You need Administrator permissions to use this command.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=False)
+    await send_rules_embed(interaction.channel)
+
+# on_ready
 @client.event
 async def on_ready():
+    await tree.sync()
     print(f"Logged in as {client.user}")
     await client.change_presence(activity=discord.Streaming(name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
 
-@client.event
-async def on_message(message):
-    print(f"Message received: {message.content} from {message.author}")  # Add this
-    # Ignore messages from bots (including self)
-    if message.author.bot:
-        return
-
-    # Only respond to "!rules" command
-    if message.content.lower() == "!rules":
-        # Ensure command is used in a guild text channel
-        if not message.guild:
-            await message.channel.send("This command can only be used in a server.")
-            return
-
-        # Check if author has Administrator permissions
-        if not message.author.guild_permissions.administrator:
-            await message.channel.send("🚫 You need Administrator permissions to use this command.")
-            return
-
-        await send_rules_embed(message.channel)
-
-# Minimal aiohttp web server to keep Fly.io happy
+# Fly.io web handler
 async def handle(request):
     return web.Response(text="Bot is running")
 
@@ -85,7 +76,7 @@ async def start_web_server():
     await site.start()
     print(f"Web server running on port {port}")
 
-# Main async function to start both web server and Discord bot
+# Main function
 async def main():
     await start_web_server()
     await client.start(token)
