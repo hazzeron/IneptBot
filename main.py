@@ -20,9 +20,9 @@ bot = discord.Bot(intents=intents)
 
 async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
-        title="📜 Server Rules",
+        title="Server Rules",
         description=(
-            "**1. Discord TOS**\n"
+            "**Discord TOS**\n"
             "-Users must follow Terms of Service and guidelines of Discord including the mandatory minimum age to be on discord is 13.\n\n"
             "**Respect Others**\n"
             "-Treat everyone with respect, any type of discrimination/racism/harassment/hate speech towards any member regardless of who will not be tolerated.\n\n"
