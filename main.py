@@ -22,16 +22,23 @@ async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
         title="📜 Server Rules",
         description=(
-            "**1. Be respectful**\n"
-            "No hate speech, personal attacks, or harassment.\n\n"
-            "**2. No spamming**\n"
-            "Avoid excessive messages, emojis, or mentions.\n\n"
-            "**3. Keep it on-topic**\n"
-            "Use channels for their intended purpose.\n\n"
-            "**4. No NSFW content**\n"
-            "Keep everything safe for work and all ages.\n\n"
-            "**5. Follow Discord's TOS**\n"
-            "[Discord TOS](https://discord.com/terms)"
+            "**1. Discord TOS**\n"
+            "-Users must follow Terms of Service and guidelines of Discord including the mandatory minimum age to be on discord is 13.\n\n"
+            "**Respect Others**\n"
+            "-Treat everyone with respect, any type of discrimination/racism/harassment/hate speech towards any member regardless of who will not be tolerated.\n\n"
+            "**No NSFW Content**\n"
+            "-Sending any type of inappropriate or disturbing content via media/links/messages/etc…\n\n"
+            "**Channel Usage**\n"
+            "-The moderation has created channels under certain categories for a reason. Use them properly for sending messages or images. Useless pings, Ghost pinging, and Spamming will result in a punishment.\n\n"
+            "**Information**\n"
+            "-Any type of acquiring personal information through malicious acts or doxxing will result in a permanent ban. If a user doesn’t feel comfortable sharing a certain piece of information with others, respect it.\n\n"
+            "**Maturity Level**\n"
+            "-Not forcing you to act mature of your current age but at least use common sense!\n\n"
+            "**Self Promo**\n"
+            "-Do not promote your own socials or servers without the permission from a moderator. This includes DMing members\n\n"
+            "**Ban evading**\n"
+            "-Do not create alternatives accounts to bypass punishments assigned to you.\n\n"
+            "As a community we are trying to set the example for others. All these rules will apply to DMs. If you do not feel comfortable with someone, feel free to reach out to any moderator. We will do our best to assist you and hand out correct punishments to rule breakers.\n"
         ),
         color=discord.Color.blue()
     )
