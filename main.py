@@ -43,7 +43,7 @@ async def send_rules_embed(channel: discord.TextChannel):
         color=discord.Color.blue()
     )
     embed.set_footer(text="React below to agree to the rules")
-    embed.set_thumbnail(url="https://imgur.com/a/EJSdLqL")
+    embed.set_thumbnail(url="https://i.imgur.com/dw8t44A.png")
     message = await channel.send(embed=embed)
     await message.add_reaction("✅")
 
