@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import discord
 from aiohttp import web
+from discord.ui import Button, View
 
 # Load token from .env
 dotenv_path = Path('.') / '.env'
@@ -51,11 +52,56 @@ async def send_rules_embed(channel: discord.TextChannel):
 @bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("🚫 You need Administrator permissions to use this command.", ephemeral=True)
+        await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
         return
 
     await send_rules_embed(ctx.channel)
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
+
+# Slash command: /ranks
+
+class RankRoleView(View):
+    def __init__(self):
+        super().__init__(timeout=None)  # No timeout; stays persistent
+
+        # Define button-label and corresponding role names
+        self.ranks = [
+            ("Iron", "Iron"),
+            ("Bronze", "Bronze"),
+            ("Silver", "Silver"),
+            ("Gold", "Gold"),
+            ("Platinum", "Platinum"),
+            ("Diamond", "Diamond"),
+            ("Ascendant", "Ascendant"),
+            ("Immortal", "Immortal"),
+            ("Radiant", "Radiant"),
+        ]
+
+        for label, role_name in self.ranks:
+            self.add_item(RankButton(label=label, role_name=role_name))
+
+class RankButton(Button):
+    def __init__(self, label, role_name):
+        super().__init__(style=discord.ButtonStyle.primary, label=label)
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
+        if not role:
+            await interaction.response.send_message(
+                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
+                ephemeral=True
+            )
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
+
+
 
 # Event when the bot is ready
 @bot.event
