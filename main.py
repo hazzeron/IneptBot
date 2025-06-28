@@ -101,6 +101,23 @@ class RankButton(Button):
             await interaction.user.add_roles(role)
             await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
 
+@bot.slash_command(description="Send the Valorant rank role selector")
+async def ranks(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.respond("🚫 You need Administrator permissions to use this command.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🏆 Rank",
+        description="Select your rank",
+        color=discord.Color.purple()
+    )
+    embed.set_image(url="https://i.imgur.com/9g4SmZQ.png")  # Replace with your own hosted image if needed
+
+    await ctx.channel.send(embed=embed, view=RankRoleView())
+    await ctx.respond("✅ Rank selector sent!", ephemeral=True)
+
+
 
 
 # Event when the bot is ready
