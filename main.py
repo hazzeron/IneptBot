@@ -16,11 +16,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-# Create the bot instance using py-cord's discord.Bot
+# Create bot instance
 bot = discord.Bot(intents=intents)
 
 # --- Slash Command: /rules ---
-
 async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
         title="Server Rules",
@@ -59,25 +58,24 @@ async def rules(ctx: discord.ApplicationContext):
     await send_rules_embed(ctx.channel)
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
+# --- Shared Role Lists ---
+RANK_ROLE_NAMES = [
+    "Iron", "Bronze", "Silver", "Gold",
+    "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
+]
+
+REGION_ROLE_NAMES = [
+    "Europe", "North America", "South America", "Middle East",
+    "Oceania", "Africa"
+]
+
 # --- Rank Role Button Classes ---
 
 class RankRoleView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.ranks = [
-            ("Iron", "Iron"),
-            ("Bronze", "Bronze"),
-            ("Silver", "Silver"),
-            ("Gold", "Gold"),
-            ("Platinum", "Platinum"),
-            ("Diamond", "Diamond"),
-            ("Ascendant", "Ascendant"),
-            ("Immortal", "Immortal"),
-            ("Radiant", "Radiant"),
-        ]
-
-        for label, role_name in self.ranks:
-            self.add_item(RankButton(label=label, role_name=role_name))
+        for role_name in RANK_ROLE_NAMES:
+            self.add_item(RankButton(label=role_name, role_name=role_name))
 
 class RankButton(Button):
     def __init__(self, label, role_name):
@@ -92,25 +90,17 @@ class RankButton(Button):
                 ephemeral=True
             )
             return
-        
-        # Remove all other rank roles from the user first
-        rank_role_names = [
-        "Iron", "Bronze", "Silver", "Gold",
-        "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
-        ]
-        user_roles = interaction.user.roles
-        roles_to_remove = [
-        r for r in user_roles if r.name in rank_role_names and r != role
-        ]
 
-        if role in interaction.user.roles:
+        user_roles = interaction.user.roles
+        roles_to_remove = [r for r in user_roles if r.name in RANK_ROLE_NAMES and r != role]
+
+        if role in user_roles:
             await interaction.user.remove_roles(role)
             await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
         else:
+            await interaction.user.remove_roles(*roles_to_remove)
             await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
-
-# --- Slash Command: /ranks ---
+            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
 
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
@@ -133,18 +123,8 @@ async def ranks(ctx: discord.ApplicationContext):
 class RegionRoleView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.ranks = [
-            ("Europe", "Europe"),
-            ("North America", "North America"),
-            ("South America", "South America"),
-            ("Africa", "Africa"),
-            ("Asia", "Asia"),
-            ("Middle East", "Middle East"),
-            ("Oceania", "Oceania"),
-        ]
-
-        for label, role_name in self.ranks:
-            self.add_item(RegionButton(label=label, role_name=role_name))
+        for role_name in REGION_ROLE_NAMES:
+            self.add_item(RegionButton(label=role_name, role_name=role_name))
 
 class RegionButton(Button):
     def __init__(self, label, role_name):
@@ -159,25 +139,17 @@ class RegionButton(Button):
                 ephemeral=True
             )
             return
-        
-        # Remove all other region roles from the user first
-        region_role_names = [
-        "Europe", "North America", "South America", "Middle East",
-        "Oceania", "Africa"
-        ]
-        user_roles = interaction.user.roles
-        roles_to_remove = [
-        r for r in user_roles if r.name in region_role_names and r != role
-        ]
 
-        if role in interaction.user.roles:
+        user_roles = interaction.user.roles
+        roles_to_remove = [r for r in user_roles if r.name in REGION_ROLE_NAMES and r != role]
+
+        if role in user_roles:
             await interaction.user.remove_roles(role)
             await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
         else:
+            await interaction.user.remove_roles(*roles_to_remove)
             await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
-
-# --- Slash Command: /regions ---
+            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
 
 @bot.slash_command(description="Send the Region role selector")
 async def regions(ctx: discord.ApplicationContext):
