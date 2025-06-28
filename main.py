@@ -28,7 +28,13 @@ REGION_ROLE_NAMES = [
     "Africa", "Asia", "Middle East", "Oceania"
 ]
 
-AGE_ROLE_NAMES = ["13", "14-17", "18+"]
+AGE_ROLE_NAMES = [
+    "13", "14-17", "18+"
+]
+
+PRONOUN_ROLE_NAMES = [
+    "she", "her", "he", "him", "they", "them"
+]
 
 # --- Utility: Assign/Remove Roles ---
 def remove_and_add_role(interaction, role_name, role_group):
@@ -107,6 +113,24 @@ async def rules(ctx: discord.ApplicationContext):
     await msg.add_reaction("✅")
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
+# --- Slash command /pronouns ---
+
+@bot.slash_command(description="Send the pronouns selector")
+async def pronouns(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Pronouns",
+        description="React to get your preferred pronouns",
+        color=discord.Color.purple()
+    )
+    embed.set_image(url="https://i.imgur.com/fRia4oS.png")
+
+    roles = [(r, r) for r in PRONOUN_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(roles, PRONOUN_ROLE_NAMES))
+    await ctx.respond("✅ Pronoun selector sent!", ephemeral=True)
+
 # --- Slash command /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
@@ -173,6 +197,7 @@ async def on_ready():
     bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in PRONOUN_ROLE_NAMES], PRONOUN_ROLE_NAMES))
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
