@@ -6,20 +6,18 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 
-# Load token from .env
-dotenv_path = Path('.') / '.env'
-load_dotenv(dotenv_path)
-token = os.getenv("DISCORD_TOKEN")
+# --- Load environment variables ---
+load_dotenv(Path('.') / '.env')
+TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Set intents
+# --- Discord Bot Setup ---
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-# Create the bot instance using py-cord's discord.Bot
 bot = discord.Bot(intents=intents)
 
-# --- Shared Role Lists ---
+# --- Role Groups ---
 RANK_ROLE_NAMES = [
     "Iron", "Bronze", "Silver", "Gold",
     "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
@@ -32,48 +30,7 @@ REGION_ROLE_NAMES = [
 
 AGE_ROLE_NAMES = ["13", "14-17", "18+"]
 
-# --- Slash Command: /rules ---
-
-async def send_rules_embed(channel: discord.TextChannel):
-    embed = discord.Embed(
-        title="Server Rules",
-        description=(
-            "**Discord TOS**\n"
-            "-Users must follow Terms of Service and guidelines of Discord including the mandatory minimum age to be on discord is 13.\n\n"
-            "**Respect Others**\n"
-            "-Treat everyone with respect, any type of discrimination/racism/harassment/hate speech towards any member regardless of who will not be tolerated.\n\n"
-            "**No NSFW Content**\n"
-            "-Sending any type of inappropriate or disturbing content via media/links/messages/etc…\n\n"
-            "**Channel Usage**\n"
-            "-The moderation has created channels under certain categories for a reason. Use them properly for sending messages or images. Useless pings, Ghost pinging, and Spamming will result in a punishment.\n\n"
-            "**Information**\n"
-            "-Any type of acquiring personal information through malicious acts or doxxing will result in a permanent ban. If a user doesn’t feel comfortable sharing a certain piece of information with others, respect it.\n\n"
-            "**Maturity Level**\n"
-            "-Not forcing you to act mature of your current age but at least use common sense!\n\n"
-            "**Self Promo**\n"
-            "-Do not promote your own socials or servers without the permission from a moderator. This includes DMing members\n\n"
-            "**Ban evading**\n"
-            "-Do not create alternatives accounts to bypass punishments assigned to you.\n\n"
-            "As a community we are trying to set the example for others. All these rules will apply to DMs. If you do not feel comfortable with someone, feel free to reach out to any moderator. We will do our best to assist you and hand out correct punishments to rule breakers.\n"
-        ),
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text="React below to agree to the rules")
-    embed.set_thumbnail(url="https://i.imgur.com/dw8t44A.png")
-    message = await channel.send(embed=embed)
-    await message.add_reaction("✅")
-
-@bot.slash_command(description="Send the server rules")
-async def rules(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-        return
-
-    await send_rules_embed(ctx.channel)
-    await ctx.respond("✅ Rules message sent.", ephemeral=True)
-
-# --- Role Button Classes ---
-
+# --- Utility: Assign/Remove Roles ---
 def remove_and_add_role(interaction, role_name, role_group):
     async def inner():
         guild = interaction.guild
@@ -84,22 +41,21 @@ def remove_and_add_role(interaction, role_name, role_group):
             )
             return
 
-        roles_to_remove = [r for r in interaction.user.roles if r.name in role_group and r != role]
+        to_remove = [r for r in interaction.user.roles if r.name in role_group and r != role]
 
-        await interaction.user.remove_roles(*roles_to_remove)
-
+        await interaction.user.remove_roles(*to_remove)
         if role in interaction.user.roles:
             await interaction.user.remove_roles(role)
             await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
         else:
             await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
-
+            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
     return inner
 
+# --- Role Button System ---
 class CustomRoleButton(Button):
     def __init__(self, label, role_name, role_group):
-        super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"role_button_{role_name}")
+        super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"role_{role_name}")
         self.role_name = role_name
         self.role_group = role_group
 
@@ -112,80 +68,69 @@ class RoleView(View):
         for label, name in roles:
             self.add_item(CustomRoleButton(label, name, role_group))
 
-# --- Age Role Button Classes ---
+# --- Commands ---
 
-class AgeRoleView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        for role_name in AGE_ROLE_NAMES:
-            self.add_item(AgeButton(label=role_name, role_name=role_name))
+# --- Slash command /rules ---
 
-class AgeButton(Button):
-    def __init__(self, label, role_name):
-        super().__init__(style=discord.ButtonStyle.primary, label=label)
-        self.role_name = role_name
-
-    async def callback(self, interaction: discord.Interaction):
-        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
-        if not role:
-            await interaction.response.send_message(
-                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
-                ephemeral=True
-            )
-            return
-
-        user_roles = interaction.user.roles
-        roles_to_remove = [r for r in user_roles if r.name in AGE_ROLE_NAMES and r != role]
-
-        if role in user_roles:
-            await interaction.user.remove_roles(role)
-            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
-        else:
-            await interaction.user.remove_roles(*roles_to_remove)
-            await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
-
-@bot.slash_command(description="Send the Age role selector")
-async def ages(ctx: discord.ApplicationContext):
+@bot.slash_command(description="Send the server rules")
+async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("Insufficient Permissions", ephemeral=True)
-        return
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
 
     embed = discord.Embed(
-        title="Age",
-        description="Select your age",
-        color=discord.Color.purple()
+        title="Server Rules",
+        description=(
+            "**Discord TOS**\n"
+            "- Users must follow Terms of Service and guidelines of Discord including the minimum age of 13.\n\n"
+            "**Respect Others**\n"
+            "- No discrimination, harassment, or hate speech.\n\n"
+            "**No NSFW Content**\n"
+            "- Don't send inappropriate or disturbing content.\n\n"
+            "**Channel Usage**\n"
+            "- Use channels as intended. No spam, ghost pings, or misuse.\n\n"
+            "**Information**\n"
+            "- No doxxing or personal info theft.\n\n"
+            "**Maturity Level**\n"
+            "- Use common sense.\n\n"
+            "**Self Promo**\n"
+            "- No self-promo without mod approval.\n\n"
+            "**Ban evading**\n"
+            "- No alt accounts to bypass punishment.\n\n"
+            "Rules apply to DMs too. Reach out to moderators if needed."
+        ),
+        color=discord.Color.blue()
     )
+    embed.set_footer(text="React below to agree to the rules")
+    embed.set_thumbnail(url="https://i.imgur.com/dw8t44A.png")
 
-    await ctx.channel.send(embed=embed, view=AgeRoleView())
-    await ctx.respond("✅ Age selector sent!", ephemeral=True)
+    msg = await ctx.channel.send(embed=embed)
+    await msg.add_reaction("✅")
+    await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# --- Slash Command: /ranks ---
+# --- Slash command /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("Insufficient Permissions", ephemeral=True)
-        return
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
 
     embed = discord.Embed(
         title="Rank",
-        description="Select your rank",
+        description="Select your Valorant rank",
         color=discord.Color.purple()
     )
     embed.set_image(url="https://i.imgur.com/tcyM7nD.png")
 
-    rank_roles = [(r, r) for r in RANK_ROLE_NAMES]
-    await ctx.channel.send(embed=embed, view=RoleView(rank_roles, RANK_ROLE_NAMES))
+    roles = [(r, r) for r in RANK_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(roles, RANK_ROLE_NAMES))
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
-# --- Slash Command: /regions ---
+# === Slash command /regions ---
 
 @bot.slash_command(description="Send the Region role selector")
 async def regions(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("Insufficient Permissions", ephemeral=True)
-        return
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
 
     embed = discord.Embed(
         title="Region",
@@ -194,45 +139,42 @@ async def regions(ctx: discord.ApplicationContext):
     )
     embed.set_image(url="https://i.imgur.com/47KXBco.png")
 
-    region_roles = [(r, r) for r in REGION_ROLE_NAMES]
-    await ctx.channel.send(embed=embed, view=RoleView(region_roles, REGION_ROLE_NAMES))
+    roles = [(r, r) for r in REGION_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(roles, REGION_ROLE_NAMES))
     await ctx.respond("✅ Region selector sent!", ephemeral=True)
 
-# --- Slash Command: /ages ---
+# --- Slash command /ages ---
 
 @bot.slash_command(description="Send the Age role selector")
 async def ages(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("Insufficient Permissions", ephemeral=True)
-        return
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
 
     embed = discord.Embed(
         title="Age",
         description="Select your age group",
-        color=discord.Color.orange()
+        color=discord.Color.purple()
     )
-    embed.set_thumbnail(url="https://i.imgur.com/dw8t44A.png")
 
-    age_roles = [(r, r) for r in AGE_ROLE_NAMES]
-    await ctx.channel.send(embed=embed, view=RoleView(age_roles, AGE_ROLE_NAMES))
+    roles = [(r, r) for r in AGE_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(roles, AGE_ROLE_NAMES))
     await ctx.respond("✅ Age selector sent!", ephemeral=True)
 
-# --- Bot Events ---
-
+# --- Events ---
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     await bot.sync_commands()
     await bot.change_presence(activity=discord.Streaming(
-        name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
+        name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"
+    ))
 
     # Register persistent views
     bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
 
-# --- Aiohttp Keep-Alive Server (Fly.io) ---
-
+# --- Keep-Alive Web Server ---
 async def handle(request):
     return web.Response(text="Bot is running")
 
@@ -241,16 +183,15 @@ async def start_web_server():
     app.add_routes([web.get('/', handle)])
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.getenv('PORT', 8080))
-    site = web.TCPSite(runner, '0.0.0.0', port)
+    port = int(os.getenv("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     print(f"Web server running on port {port}")
 
 # --- Entry Point ---
-
 async def main():
     await start_web_server()
-    await bot.start(token)
+    await bot.start(TOKEN)
 
 if __name__ == "__main__":
     asyncio.run(main())
