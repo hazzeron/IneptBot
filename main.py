@@ -19,6 +19,8 @@ intents.guilds = True
 # Create the bot instance using py-cord's discord.Bot
 bot = discord.Bot(intents=intents)
 
+# --- Slash Command: /rules ---
+
 async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
         title="Server Rules",
@@ -48,8 +50,6 @@ async def send_rules_embed(channel: discord.TextChannel):
     message = await channel.send(embed=embed)
     await message.add_reaction("✅")
 
-# Slash command: /rules
-
 @bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -59,13 +59,11 @@ async def rules(ctx: discord.ApplicationContext):
     await send_rules_embed(ctx.channel)
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# /ranks code
+# --- Rank Role Button Classes ---
 
 class RankRoleView(View):
     def __init__(self):
-        super().__init__(timeout=None)  # No timeout; stays persistent
-
-        # Define button-label and corresponding role names
+        super().__init__(timeout=None)
         self.ranks = [
             ("Iron", "Iron"),
             ("Bronze", "Bronze"),
@@ -102,7 +100,7 @@ class RankButton(Button):
             await interaction.user.add_roles(role)
             await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
 
-# Slash command: /ranks
+# --- Slash Command: /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
@@ -115,15 +113,13 @@ async def ranks(ctx: discord.ApplicationContext):
         description="Select your rank",
         color=discord.Color.yellow()
     )
-    embed.set_image(url="https://i.imgur.com/tcyM7nD.png") 
+    embed.set_image(url="https://i.imgur.com/tcyM7nD.png")
 
     await ctx.channel.send(embed=embed, view=RankRoleView())
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
+# --- Bot Events ---
 
-
-
-# Event when the bot is ready
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
@@ -131,8 +127,8 @@ async def on_ready():
     await bot.change_presence(activity=discord.Streaming(
         name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
 
+# --- Aiohttp Keep-Alive Server (Fly.io) ---
 
-# Aiohttp server to keep Fly.io happy
 async def handle(request):
     return web.Response(text="Bot is running")
 
@@ -146,7 +142,8 @@ async def start_web_server():
     await site.start()
     print(f"Web server running on port {port}")
 
-# Start both web server and Discord bot
+# --- Entry Point ---
+
 async def main():
     await start_web_server()
     await bot.start(token)
