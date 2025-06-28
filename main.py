@@ -16,10 +16,24 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-# Create bot instance
+# Create the bot instance using py-cord's discord.Bot
 bot = discord.Bot(intents=intents)
 
+# --- Shared Role Lists ---
+RANK_ROLE_NAMES = [
+    "Iron", "Bronze", "Silver", "Gold",
+    "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
+]
+
+REGION_ROLE_NAMES = [
+    "Europe", "North America", "South America",
+    "Africa", "Asia", "Middle East", "Oceania"
+]
+
+AGE_ROLE_NAMES = ["13", "14-17", "18+"]
+
 # --- Slash Command: /rules ---
+
 async def send_rules_embed(channel: discord.TextChannel):
     embed = discord.Embed(
         title="Server Rules",
@@ -58,53 +72,47 @@ async def rules(ctx: discord.ApplicationContext):
     await send_rules_embed(ctx.channel)
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# --- Shared Role Lists ---
-RANK_ROLE_NAMES = [
-    "Iron", "Bronze", "Silver", "Gold",
-    "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
-]
+# --- Role Button Classes ---
 
-REGION_ROLE_NAMES = [
-    "Europe", "North America", "South America", "Middle East",
-    "Oceania", "Africa", "Asia"
-]
-
-AGE_ROLE_NAMES = [
-    "13", "14-17", "18+"
-]
-
-# --- Rank Role Button Classes ---
-
-class RankRoleView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        for role_name in RANK_ROLE_NAMES:
-            self.add_item(RankButton(label=role_name, role_name=role_name))
-
-class RankButton(Button):
-    def __init__(self, label, role_name):
-        super().__init__(style=discord.ButtonStyle.primary, label=label)
-        self.role_name = role_name
-
-    async def callback(self, interaction: discord.Interaction):
-        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
+def remove_and_add_role(interaction, role_name, role_group):
+    async def inner():
+        guild = interaction.guild
+        role = discord.utils.get(guild.roles, name=role_name)
         if not role:
             await interaction.response.send_message(
-                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
-                ephemeral=True
+                f"❌ Role '{role_name}' not found. Ask an admin to create it.", ephemeral=True
             )
             return
 
-        user_roles = interaction.user.roles
-        roles_to_remove = [r for r in user_roles if r.name in RANK_ROLE_NAMES and r != role]
+        roles_to_remove = [r for r in interaction.user.roles if r.name in role_group and r != role]
 
-        if role in user_roles:
+        await interaction.user.remove_roles(*roles_to_remove)
+
+        if role in interaction.user.roles:
             await interaction.user.remove_roles(role)
             await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
         else:
-            await interaction.user.remove_roles(*roles_to_remove)
             await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
+            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
+
+    return inner
+
+class CustomRoleButton(Button):
+    def __init__(self, label, role_name, role_group):
+        super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"role_button_{role_name}")
+        self.role_name = role_name
+        self.role_group = role_group
+
+    async def callback(self, interaction: discord.Interaction):
+        await remove_and_add_role(interaction, self.role_name, self.role_group)()
+
+class RoleView(View):
+    def __init__(self, roles, role_group):
+        super().__init__(timeout=None)
+        for label, name in roles:
+            self.add_item(CustomRoleButton(label, name, role_group))
+
+# --- Slash Command: /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
@@ -119,41 +127,11 @@ async def ranks(ctx: discord.ApplicationContext):
     )
     embed.set_image(url="https://i.imgur.com/tcyM7nD.png")
 
-    await ctx.channel.send(embed=embed, view=RankRoleView())
+    rank_roles = [(r, r) for r in RANK_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(rank_roles, RANK_ROLE_NAMES))
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
-# --- Region Role Button Classes ---
-
-class RegionRoleView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        for role_name in REGION_ROLE_NAMES:
-            self.add_item(RegionButton(label=role_name, role_name=role_name))
-
-class RegionButton(Button):
-    def __init__(self, label, role_name):
-        super().__init__(style=discord.ButtonStyle.primary, label=label)
-        self.role_name = role_name
-
-    async def callback(self, interaction: discord.Interaction):
-        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
-        if not role:
-            await interaction.response.send_message(
-                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
-                ephemeral=True
-            )
-            return
-
-        user_roles = interaction.user.roles
-        roles_to_remove = [r for r in user_roles if r.name in REGION_ROLE_NAMES and r != role]
-
-        if role in user_roles:
-            await interaction.user.remove_roles(role)
-            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
-        else:
-            await interaction.user.remove_roles(*roles_to_remove)
-            await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
+# --- Slash Command: /regions ---
 
 @bot.slash_command(description="Send the Region role selector")
 async def regions(ctx: discord.ApplicationContext):
@@ -168,56 +146,27 @@ async def regions(ctx: discord.ApplicationContext):
     )
     embed.set_image(url="https://i.imgur.com/47KXBco.png")
 
-    await ctx.channel.send(embed=embed, view=RegionRoleView())
+    region_roles = [(r, r) for r in REGION_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(region_roles, REGION_ROLE_NAMES))
     await ctx.respond("✅ Region selector sent!", ephemeral=True)
 
-
-# --- Age Role Button Classes ---
-
-class AgeRoleView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        for role_name in AGE_ROLE_NAMES:
-            self.add_item(AgeButton(label=role_name, role_name=role_name))
-
-class AgeButton(Button):
-    def __init__(self, label, role_name):
-        super().__init__(style=discord.ButtonStyle.primary, label=label)
-        self.role_name = role_name
-
-    async def callback(self, interaction: discord.Interaction):
-        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
-        if not role:
-            await interaction.response.send_message(
-                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
-                ephemeral=True
-            )
-            return
-
-        user_roles = interaction.user.roles
-        roles_to_remove = [r for r in user_roles if r.name in AGE_ROLE_NAMES and r != role]
-
-        if role in user_roles:
-            await interaction.user.remove_roles(role)
-            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
-        else:
-            await interaction.user.remove_roles(*roles_to_remove)
-            await interaction.user.add_roles(role)
-            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
+# --- Slash Command: /age ---
 
 @bot.slash_command(description="Send the Age role selector")
-async def ages(ctx: discord.ApplicationContext):
+async def age(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
         await ctx.respond("Insufficient Permissions", ephemeral=True)
         return
 
     embed = discord.Embed(
         title="Age",
-        description="Select your age",
-        color=discord.Color.purple()
+        description="Select your age group",
+        color=discord.Color.orange()
     )
+    embed.set_thumbnail(url="https://i.imgur.com/dw8t44A.png")
 
-    await ctx.channel.send(embed=embed, view=AgeRoleView())
+    age_roles = [(r, r) for r in AGE_ROLE_NAMES]
+    await ctx.channel.send(embed=embed, view=RoleView(age_roles, AGE_ROLE_NAMES))
     await ctx.respond("✅ Age selector sent!", ephemeral=True)
 
 # --- Bot Events ---
@@ -228,6 +177,11 @@ async def on_ready():
     await bot.sync_commands()
     await bot.change_presence(activity=discord.Streaming(
         name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
+
+    # Register persistent views
+    bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
 
 # --- Aiohttp Keep-Alive Server (Fly.io) ---
 
