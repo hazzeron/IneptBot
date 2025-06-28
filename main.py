@@ -198,10 +198,10 @@ async def regions(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RoleView(region_roles, REGION_ROLE_NAMES))
     await ctx.respond("✅ Region selector sent!", ephemeral=True)
 
-# --- Slash Command: /age ---
+# --- Slash Command: /ages ---
 
 @bot.slash_command(description="Send the Age role selector")
-async def age(ctx: discord.ApplicationContext):
+async def ages(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
         await ctx.respond("Insufficient Permissions", ephemeral=True)
         return
