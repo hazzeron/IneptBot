@@ -49,6 +49,7 @@ async def send_rules_embed(channel: discord.TextChannel):
     await message.add_reaction("✅")
 
 # Slash command: /rules
+
 @bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -58,7 +59,7 @@ async def rules(ctx: discord.ApplicationContext):
     await send_rules_embed(ctx.channel)
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# Slash command: /ranks
+# /ranks code
 
 class RankRoleView(View):
     def __init__(self):
@@ -101,6 +102,8 @@ class RankButton(Button):
             await interaction.user.add_roles(role)
             await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
 
+# Slash command: /ranks
+
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -124,8 +127,10 @@ async def ranks(ctx: discord.ApplicationContext):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    await bot.sync_commands()
     await bot.change_presence(activity=discord.Streaming(
         name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"))
+
 
 # Aiohttp server to keep Fly.io happy
 async def handle(request):
