@@ -58,7 +58,7 @@ def remove_and_add_role(interaction, role_name, role_group):
             await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
     return inner
 
-# --- Role Button System ---
+# --- Role Button System (Single Role) ---
 class CustomRoleButton(Button):
     def __init__(self, label, role_name, role_group):
         super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"role_{role_name}")
@@ -73,6 +73,34 @@ class RoleView(View):
         super().__init__(timeout=None)
         for label, name in roles:
             self.add_item(CustomRoleButton(label, name, role_group))
+
+# --- Multi-Role Button System (For Pronouns) ---
+class MultiRoleButton(Button):
+    def __init__(self, label, role_name):
+        super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"multi_{role_name}")
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        role = discord.utils.get(guild.roles, name=self.role_name)
+        if not role:
+            await interaction.response.send_message(
+                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.", ephemeral=True
+            )
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
+
+class MultiRoleView(View):
+    def __init__(self, roles):
+        super().__init__(timeout=None)
+        for label, name in roles:
+            self.add_item(MultiRoleButton(label, name))
 
 # --- Commands ---
 
@@ -122,13 +150,13 @@ async def pronouns(ctx: discord.ApplicationContext):
 
     embed = discord.Embed(
         title="Pronouns",
-        description="React to get your preferred pronouns",
+        description="Click to select your pronouns (you can select multiple)",
         color=discord.Color.purple()
     )
     embed.set_image(url="https://i.imgur.com/fRia4oS.png")
 
     roles = [(r, r) for r in PRONOUN_ROLE_NAMES]
-    await ctx.channel.send(embed=embed, view=RoleView(roles, PRONOUN_ROLE_NAMES))
+    await ctx.channel.send(embed=embed, view=MultiRoleView(roles))
     await ctx.respond("✅ Pronoun selector sent!", ephemeral=True)
 
 # --- Slash command /ranks ---
@@ -149,7 +177,7 @@ async def ranks(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RoleView(roles, RANK_ROLE_NAMES))
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
-# === Slash command /regions ---
+# --- Slash command /regions ---
 
 @bot.slash_command(description="Send the Region role selector")
 async def regions(ctx: discord.ApplicationContext):
@@ -197,7 +225,7 @@ async def on_ready():
     bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
-    bot.add_view(RoleView([(r, r) for r in PRONOUN_ROLE_NAMES], PRONOUN_ROLE_NAMES))
+    bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
