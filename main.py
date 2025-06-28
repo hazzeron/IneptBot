@@ -66,7 +66,7 @@ RANK_ROLE_NAMES = [
 
 REGION_ROLE_NAMES = [
     "Europe", "North America", "South America", "Middle East",
-    "Oceania", "Africa"
+    "Oceania", "Africa", "Asia"
 ]
 
 AGE_ROLE_NAMES = [
