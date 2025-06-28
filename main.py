@@ -117,6 +117,7 @@ async def ranks(ctx: discord.ApplicationContext):
         description="Select your rank",
         color=discord.Color.purple()
     )
+    embed.set_image(url="https://i.imgur.com/tcyM7nD.png")
 
     await ctx.channel.send(embed=embed, view=RankRoleView())
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
@@ -215,7 +216,6 @@ async def ages(ctx: discord.ApplicationContext):
         description="Select your age",
         color=discord.Color.purple()
     )
-    embed.set_image(url="https://i.imgur.com/47KXBco.png")
 
     await ctx.channel.send(embed=embed, view=AgeRoleView())
     await ctx.respond("✅ Age selector sent!", ephemeral=True)
