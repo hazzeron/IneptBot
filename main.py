@@ -92,6 +92,16 @@ class RankButton(Button):
                 ephemeral=True
             )
             return
+        
+        # Remove all other rank roles from the user first
+        rank_role_names = [
+        "Iron", "Bronze", "Silver", "Gold",
+        "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"
+        ]
+        user_roles = interaction.user.roles
+        roles_to_remove = [
+        r for r in user_roles if r.name in rank_role_names and r != role
+        ]
 
         if role in interaction.user.roles:
             await interaction.user.remove_roles(role)
