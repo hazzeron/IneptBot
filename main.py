@@ -112,6 +112,54 @@ class RoleView(View):
         for label, name in roles:
             self.add_item(CustomRoleButton(label, name, role_group))
 
+# --- Age Role Button Classes ---
+
+class AgeRoleView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        for role_name in AGE_ROLE_NAMES:
+            self.add_item(AgeButton(label=role_name, role_name=role_name))
+
+class AgeButton(Button):
+    def __init__(self, label, role_name):
+        super().__init__(style=discord.ButtonStyle.primary, label=label)
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
+        if not role:
+            await interaction.response.send_message(
+                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
+                ephemeral=True
+            )
+            return
+
+        user_roles = interaction.user.roles
+        roles_to_remove = [r for r in user_roles if r.name in AGE_ROLE_NAMES and r != role]
+
+        if role in user_roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
+        else:
+            await interaction.user.remove_roles(*roles_to_remove)
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
+
+@bot.slash_command(description="Send the Age role selector")
+async def ages(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.respond("Insufficient Permissions", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="Age",
+        description="Select your age",
+        color=discord.Color.purple()
+    )
+
+    await ctx.channel.send(embed=embed, view=AgeRoleView())
+    await ctx.respond("✅ Age selector sent!", ephemeral=True)
+
 # --- Slash Command: /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
