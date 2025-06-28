@@ -113,9 +113,9 @@ async def ranks(ctx: discord.ApplicationContext):
     embed = discord.Embed(
         title="🏆 Rank",
         description="Select your rank",
-        color=discord.Color.purple()
+        color=discord.Color.yellow()
     )
-    embed.set_image(url="https://i.imgur.com/9g4SmZQ.png")  # Replace with your own hosted image if needed
+    embed.set_image(url="https://i.imgur.com/tcyM7nD.png") 
 
     await ctx.channel.send(embed=embed, view=RankRoleView())
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
