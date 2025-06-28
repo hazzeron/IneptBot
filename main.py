@@ -118,6 +118,63 @@ async def ranks(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RankRoleView())
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
+# --- Region Role Button Classes ---
+
+class RegionRoleView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.ranks = [
+            ("Europe", "Europe"),
+            ("North America", "North America"),
+            ("South America", "South America"),
+            ("Africa", "Africa"),
+            ("Asia", "Asia"),
+            ("Middle East", "Middle East"),
+            ("Oceania", "Oceania"),
+        ]
+
+        for label, role_name in self.ranks:
+            self.add_item(RegionButton(label=label, role_name=role_name))
+
+class RegionButton(Button):
+    def __init__(self, label, role_name):
+        super().__init__(style=discord.ButtonStyle.primary, label=label)
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        role = discord.utils.get(interaction.guild.roles, name=self.role_name)
+        if not role:
+            await interaction.response.send_message(
+                f"❌ Role '{self.role_name}' not found. Ask an admin to create it.",
+                ephemeral=True
+            )
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"✅ Added role: **{role.name}**", ephemeral=True)
+
+# --- Slash Command: /regions ---
+
+@bot.slash_command(description="Send the Region role selector")
+async def regions(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.respond("Insufficient Permissions", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="Region",
+        description="Select your region",
+        color=discord.Color.purple()
+    )
+    embed.set_image(url="https://i.imgur.com/47KXBco.png")
+
+    await ctx.channel.send(embed=embed, view=RegionRoleView())
+    await ctx.respond("✅ Region selector sent!", ephemeral=True)
+
 # --- Bot Events ---
 
 @bot.event
