@@ -105,13 +105,13 @@ class RankButton(Button):
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.respond("🚫 You need Administrator permissions to use this command.", ephemeral=True)
+        await ctx.respond("Insufficient Permissions", ephemeral=True)
         return
 
     embed = discord.Embed(
-        title="🏆 Rank",
+        title="Rank",
         description="Select your rank",
-        color=discord.Color.yellow()
+        color=discord.Color.purple()
     )
     embed.set_image(url="https://i.imgur.com/tcyM7nD.png")
 
