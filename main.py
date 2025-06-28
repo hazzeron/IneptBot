@@ -159,6 +159,16 @@ class RegionButton(Button):
                 ephemeral=True
             )
             return
+        
+        # Remove all other region roles from the user first
+        region_role_names = [
+        "Europe", "North America", "South America", "Middle East",
+        "Oceania", "Africa"
+        ]
+        user_roles = interaction.user.roles
+        roles_to_remove = [
+        r for r in user_roles if r.name in region_role_names and r != role
+        ]
 
         if role in interaction.user.roles:
             await interaction.user.remove_roles(role)
