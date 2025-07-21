@@ -247,7 +247,7 @@ async def dailyping(ctx: discord.ApplicationContext):
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
     await bot.change_presence(activity=discord.Streaming(
-        name="Streaming on Twitch!",
+        name="twitch.tv/ineptateverything",
         url="https://www.twitch.tv/ineptateverything"
     ))
 
