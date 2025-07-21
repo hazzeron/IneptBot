@@ -16,7 +16,8 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
-intents.members = True  # Required to fetch roles/users
+intents.members = True
+intents.presences = True  # ✅ Added this line
 bot = discord.Bot(intents=intents)
 
 # --- Role Groups ---
@@ -105,7 +106,6 @@ class MultiRoleView(View):
             self.add_item(MultiRoleButton(label, name))
 
 # --- Daily shop ping ---
-
 class DailyPingButton(Button):
     def __init__(self):
         super().__init__(style=discord.ButtonStyle.success, label="Get Daily Ping", custom_id="daily_ping_button")
@@ -131,7 +131,7 @@ class DailyPingView(View):
         super().__init__(timeout=None)
         self.add_item(DailyPingButton())
 
-# --- Commands ---
+# --- Slash Commands ---
 @bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -244,11 +244,36 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
+# --- Streaming Status Handler ---
+async def set_streaming_presence():
+    await bot.change_presence(activity=discord.Streaming(
+        name="Streaming on Twitch!",
+        url="https://www.twitch.tv/ineptateverything"
+    ))
+
+# --- Events ---
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    await bot.sync_commands()
+    await set_streaming_presence()
+
+    bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
+    bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
+    bot.add_view(DailyPingView())
+
+    asyncio.create_task(daily_shop_ping())
+
+@bot.event
+async def on_connect():
+    await set_streaming_presence()  # ✅ Resets streaming status on reconnect
 
 # --- Scheduled Task: Daily Ping ---
 async def daily_shop_ping():
     await bot.wait_until_ready()
-    guild = discord.utils.get(bot.guilds)  # Get the first connected guild
+    guild = discord.utils.get(bot.guilds)
     if not guild:
         print("No guilds connected.")
         return
@@ -277,25 +302,6 @@ async def daily_shop_ping():
             await channel.send(f"|| {role.mention} || \n Shop has reset!")
         except Exception as e:
             print(f"Failed to send ping: {e}")
-
-# --- Events ---
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-    await bot.sync_commands()
-    await bot.change_presence(activity=discord.Streaming(
-        name="twitch.tv/ineptateverything", url="https://twitch.tv/ineptateverything"
-    ))
-
-    # Register persistent views
-    bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
-    bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
-    bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
-    bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
-    bot.add_view(DailyPingView())
-
-    # Start shop ping scheduler
-    asyncio.create_task(daily_shop_ping())
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
