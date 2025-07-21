@@ -108,7 +108,7 @@ class MultiRoleView(View):
 # --- Daily shop ping ---
 class DailyPingButton(Button):
     def __init__(self):
-        super().__init__(style=discord.ButtonStyle.success, label="Get Daily Ping", custom_id="daily_ping_button")
+        super().__init__(style=discord.ButtonStyle.primary, label="Get Daily Ping", custom_id="daily_ping_button")
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
