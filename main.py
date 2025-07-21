@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import discord
 from aiohttp import web
 from discord.ui import Button, View
+from datetime import datetime, timedelta
+import pytz
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -14,7 +16,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
-
+intents.members = True  # Required to fetch roles/users
 bot = discord.Bot(intents=intents)
 
 # --- Role Groups ---
@@ -102,10 +104,34 @@ class MultiRoleView(View):
         for label, name in roles:
             self.add_item(MultiRoleButton(label, name))
 
+# --- Daily shop ping ---
+
+class DailyPingButton(Button):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.success, label="Get Daily Ping", custom_id="daily_ping_button")
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        role = discord.utils.get(guild.roles, name="Shop ping")
+        if not role:
+            await interaction.response.send_message(
+                "❌ Role 'Shop ping' not found. Ask an admin to create it.", ephemeral=True
+            )
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message("🗑️ Removed role: **Shop ping**", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message("✅ Added role: **Shop ping**", ephemeral=True)
+
+class DailyPingView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(DailyPingButton())
+
 # --- Commands ---
-
-# --- Slash command /rules ---
-
 @bot.slash_command(description="Send the server rules")
 async def rules(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -141,8 +167,6 @@ async def rules(ctx: discord.ApplicationContext):
     await msg.add_reaction("✅")
     await ctx.respond("✅ Rules message sent.", ephemeral=True)
 
-# --- Slash command /pronouns ---
-
 @bot.slash_command(description="Send the pronouns selector")
 async def pronouns(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -158,8 +182,6 @@ async def pronouns(ctx: discord.ApplicationContext):
     roles = [(r, r) for r in PRONOUN_ROLE_NAMES]
     await ctx.channel.send(embed=embed, view=MultiRoleView(roles))
     await ctx.respond("✅ Pronoun selector sent!", ephemeral=True)
-
-# --- Slash command /ranks ---
 
 @bot.slash_command(description="Send the Valorant rank role selector")
 async def ranks(ctx: discord.ApplicationContext):
@@ -177,8 +199,6 @@ async def ranks(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RoleView(roles, RANK_ROLE_NAMES))
     await ctx.respond("✅ Rank selector sent!", ephemeral=True)
 
-# --- Slash command /regions ---
-
 @bot.slash_command(description="Send the Region role selector")
 async def regions(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -195,8 +215,6 @@ async def regions(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RoleView(roles, REGION_ROLE_NAMES))
     await ctx.respond("✅ Region selector sent!", ephemeral=True)
 
-# --- Slash command /ages ---
-
 @bot.slash_command(description="Send the Age role selector")
 async def ages(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -212,6 +230,54 @@ async def ages(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=RoleView(roles, AGE_ROLE_NAMES))
     await ctx.respond("✅ Age selector sent!", ephemeral=True)
 
+@bot.slash_command(description="Send the Daily ping role option")
+async def dailyping(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Daily ping",
+        description="Press the button to get notified each time the Valorant store resets",
+        color=discord.Color.purple()
+    )
+
+    await ctx.channel.send(embed=embed, view=DailyPingView())
+    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
+
+
+# --- Scheduled Task: Daily Ping ---
+async def daily_shop_ping():
+    await bot.wait_until_ready()
+    guild = discord.utils.get(bot.guilds)  # Get the first connected guild
+    if not guild:
+        print("No guilds connected.")
+        return
+
+    channel = guild.get_channel(1396847461494034472)
+    if not channel:
+        print("Channel not found.")
+        return
+
+    role = discord.utils.get(guild.roles, name="Shop ping")
+    if not role:
+        print("Role 'Shop ping' not found.")
+        return
+
+    gmt = pytz.timezone("GMT")
+
+    while not bot.is_closed():
+        now = datetime.now(gmt)
+        target = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += timedelta(days=1)
+        wait_time = (target - now).total_seconds()
+        await asyncio.sleep(wait_time)
+
+        try:
+            await channel.send(f"|| {role.mention} || \n Shop has reset!")
+        except Exception as e:
+            print(f"Failed to send ping: {e}")
+
 # --- Events ---
 @bot.event
 async def on_ready():
@@ -226,6 +292,10 @@ async def on_ready():
     bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
+    bot.add_view(DailyPingView())
+
+    # Start shop ping scheduler
+    asyncio.create_task(daily_shop_ping())
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
