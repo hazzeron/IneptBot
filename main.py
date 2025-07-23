@@ -1,4 +1,5 @@
 import os
+import signal
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
@@ -220,5 +221,18 @@ async def main():
     await start_web_server()
     await bot.start(TOKEN)
 
+async def shutdown():
+    print("🛑 Shutdown signal received. Logging out...")
+    await bot.close()
+
+def handle_signal():
+    asyncio.create_task(shutdown())
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, handle_signal)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        loop.close()
