@@ -19,6 +19,10 @@ intents.members = True
 intents.presences = True
 bot = discord.Bot(intents=intents)
 
+# --- Constants ---
+GUILD_ID = 1386539630941175848  # Your server ID
+CHANNEL_ID = 1396847461494034472  # Your target text channel ID
+
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
 REGION_ROLE_NAMES = ["Europe", "North America", "South America", "Africa", "Asia", "Middle East", "Oceania"]
@@ -157,8 +161,13 @@ async def daily_shop_ping():
     await bot.wait_until_ready()
     print("⏱️ Daily ping task started")
 
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        print("❌ Guild not found. Check GUILD_ID and if the bot is in the server.")
+        return
+
     try:
-        channel = await bot.fetch_channel(1396847461494034472)
+        channel = await bot.fetch_channel(CHANNEL_ID)
         print(f"📨 Found channel: {channel.name} ({channel.id})")
     except discord.NotFound:
         print("❌ Channel not found. Check if the bot has access to the channel ID.")
@@ -170,7 +179,6 @@ async def daily_shop_ping():
         print(f"❌ HTTP error while fetching channel: {e}")
         return
 
-    guild = channel.guild
     role = discord.utils.get(guild.roles, name="Shop ping")
     if not role:
         print("❌ Role 'Shop ping' not found.")
