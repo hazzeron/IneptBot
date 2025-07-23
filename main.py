@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import discord
 from aiohttp import web
 from discord.ui import Button, View
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -112,8 +112,6 @@ class DailyPingView(View):
         self.add_item(DailyPingButton())
 
 # --- Slash Commands ---
-# (all your command definitions remain unchanged)
-
 @bot.slash_command(description="Send the Daily ping role option")
 async def dailyping(ctx: discord.ApplicationContext):
     if not ctx.author.guild_permissions.administrator:
@@ -164,9 +162,10 @@ async def daily_shop_ping():
         print("❌ No guilds connected.")
         return
 
-    channel = guild.get_channel(1396847461494034472)
-    if not channel:
-        print("❌ Channel not found.")
+    try:
+        channel = await bot.fetch_channel(1396847461494034472)
+    except Exception as e:
+        print(f"❌ Failed to fetch channel: {e}")
         return
 
     role = discord.utils.get(guild.roles, name="Shop ping")
@@ -187,10 +186,9 @@ async def daily_shop_ping():
             except Exception as e:
                 print(f"❌ Failed to send daily shop ping: {e}")
         elif now.hour != 0:
-            # Reset the flag after midnight has passed
             sent_today = False
 
-        await asyncio.sleep(60)  # check every minute
+        await asyncio.sleep(60)
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
