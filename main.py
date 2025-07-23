@@ -174,19 +174,23 @@ async def daily_shop_ping():
         print("❌ Role 'Shop ping' not found.")
         return
 
+    sent_today = False
+
     while not bot.is_closed():
         now = datetime.now(timezone.utc)
-        next_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        seconds_until_midnight = (next_midnight - now).total_seconds()
 
-        print(f"⏳ Sleeping for {seconds_until_midnight:.2f} seconds until 00:00 UTC")
-        await asyncio.sleep(seconds_until_midnight)
+        if now.hour == 0 and now.minute == 0 and not sent_today:
+            try:
+                await channel.send(f"|| {role.mention} || \nShop has reset!")
+                print(f"✅ Daily shop ping sent at {now.isoformat()}")
+                sent_today = True
+            except Exception as e:
+                print(f"❌ Failed to send daily shop ping: {e}")
+        elif now.hour != 0:
+            # Reset the flag after midnight has passed
+            sent_today = False
 
-        try:
-            await channel.send(f"|| {role.mention} || \nShop has reset!")
-            print("✅ Daily shop ping sent.")
-        except Exception as e:
-            print(f"❌ Failed to send daily shop ping: {e}")
+        await asyncio.sleep(60)  # check every minute
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
