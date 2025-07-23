@@ -157,17 +157,20 @@ async def daily_shop_ping():
     await bot.wait_until_ready()
     print("⏱️ Daily ping task started")
 
-    guild = discord.utils.get(bot.guilds)
-    if not guild:
-        print("❌ No guilds connected.")
-        return
-
     try:
         channel = await bot.fetch_channel(1396847461494034472)
-    except Exception as e:
-        print(f"❌ Failed to fetch channel: {e}")
+        print(f"📨 Found channel: {channel.name} ({channel.id})")
+    except discord.NotFound:
+        print("❌ Channel not found. Check if the bot has access to the channel ID.")
+        return
+    except discord.Forbidden:
+        print("❌ Bot lacks permission to access the channel.")
+        return
+    except discord.HTTPException as e:
+        print(f"❌ HTTP error while fetching channel: {e}")
         return
 
+    guild = channel.guild
     role = discord.utils.get(guild.roles, name="Shop ping")
     if not role:
         print("❌ Role 'Shop ping' not found.")
