@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for ineptbot on 2025-06-26T03:47:58+01:00
+# fly.toml app configuration file for ineptbot
 
 app = 'ineptbot'
 primary_region = 'lhr'
@@ -15,10 +15,10 @@ primary_region = 'lhr'
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = false      # ✅ Keep app running even when idle
   auto_start_machines = true
-  min_machines_running = 0
-  processes = ["app"]  # 👈 This line links the service to your defined process
+  min_machines_running = 1        # ✅ Ensure at least one machine stays up
+  processes = ["app"]
 
   [[http_service.ports]]
     port = 80
@@ -32,3 +32,13 @@ primary_region = 'lhr'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[checks]
+  [checks.alive]
+    type = "http"
+    interval = "30s"
+    timeout = "5s"
+    path = "/"
+    grace_period = "10s"
+    method = "get"
+    protocol = "http"
