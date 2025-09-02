@@ -161,38 +161,26 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-# --- DiscordSRV Event Listener with Player Counts ---
+# --- DiscordSRV Event Listener for Join/Leave Only ---
 @bot.event
 async def on_message(message):
+    # Only monitor the Minecraft status channel
     if message.channel.id != MC_CHANNEL_ID:
         return
-    if not message.author.bot:  # Only handle DiscordSRV messages
+    # Only process messages sent by webhooks (DiscordSRV)
+    if not message.webhook_id:
         return
 
     content = message.content
     lc_content = content.lower()
     online, max_players = await get_mc_player_count()
 
-    edited_content = None
-
     if "joined the game" in lc_content:
-        player_name = content.split(" joined the server")[0]
-        edited_content = f"✅ {player_name} joined the server! ({online}/{max_players})"
+        player_name = content.split(" joined the game")[0]
+        await message.channel.send(f"✅ {player_name} joined the server! ({online}/{max_players})")
     elif "left the game" in lc_content:
-        player_name = content.split(" left the server")[0]
-        edited_content = f"❌ {player_name} left the server! ({online}/{max_players})"
-    elif "server started" in lc_content or "server has started" in lc_content:
-        edited_content = "🔔 Server is now online!"
-    elif "server stopped" in lc_content or "server has stopped" in lc_content:
-        edited_content = "🔔 Server is now offline!"
-
-    if edited_content:
-        try:
-            # Edit original DiscordSRV message
-            await message.edit(content=edited_content)
-        except discord.Forbidden:
-            # Fallback: send new message if edit not allowed
-            await message.channel.send(edited_content)
+        player_name = content.split(" left the game")[0]
+        await message.channel.send(f"❌ {player_name} left the server! ({online}/{max_players})")
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
