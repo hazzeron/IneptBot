@@ -176,14 +176,14 @@ async def on_message(message):
     edited_content = None
 
     if "joined the game" in lc_content:
-        player_name = content.split(" joined the game")[0]
+        player_name = content.split(" joined the server")[0]
         edited_content = f"✅ {player_name} joined the server! ({online}/{max_players})"
     elif "left the game" in lc_content:
-        player_name = content.split(" left the game")[0]
+        player_name = content.split(" left the server")[0]
         edited_content = f"❌ {player_name} left the server! ({online}/{max_players})"
-    elif "server started" in lc_content or "server is now online" in lc_content:
+    elif "server started" in lc_content or "server has started" in lc_content:
         edited_content = "🔔 Server is now online!"
-    elif "server stopped" in lc_content or "server is now offline" in lc_content:
+    elif "server stopped" in lc_content or "server has stopped" in lc_content:
         edited_content = "🔔 Server is now offline!"
 
     if edited_content:
