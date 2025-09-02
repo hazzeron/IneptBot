@@ -7,7 +7,8 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
-from mcstatus import MinecraftServer
+from mcstatus.server import MinecraftServer
+
 
 # Minecraft monitor settings
 MC_SERVER_IP = "atom.aternos.org"  # your server IP or hostname
