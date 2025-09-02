@@ -7,12 +7,11 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
-from mcstatus.server import MinecraftServer
+from mcstatus import JavaServer  # updated for mcstatus v11+
 
-
-# Minecraft monitor settings
+# --- Minecraft monitor settings ---
 MC_SERVER_IP = "atom.aternos.org"  # your server IP or hostname
-MC_CHANNEL_ID = 1412246563526279291  # channel ID where updates will be sent
+MC_CHANNEL_ID = 1412246563526279291  # Discord channel ID
 MC_CHECK_INTERVAL = 5  # seconds
 
 async def minecraft_monitor():
@@ -29,34 +28,33 @@ async def minecraft_monitor():
 
     while not bot.is_closed():
         try:
-            server = MinecraftServer.lookup(MC_SERVER_IP)
-            status = server.status()
+            server = JavaServer(MC_SERVER_IP)
+            # Run blocking status call in a thread
+            status = await asyncio.to_thread(server.status)
             online = True
-            players = set(p.name for p in status.players.sample or [])
+            players = set(p.name for p in getattr(status.players, "sample", []) or [])
         except Exception:
             online = False
             players = set()
 
-        # Server online/offline status change
+        # Server online/offline changes
         if last_online is None:
             last_online = online
         elif online != last_online:
-            await channel.send(f"Server is now **{'online' if online else 'offline'}**!")
+            await channel.send(f"🔔 Server is now **{'online' if online else 'offline'}**!")
             last_online = online
 
-        # Player join/leave detection
+        # Player joins/leaves
         joined = players - last_players
         left = last_players - players
 
         for player in joined:
-            await channel.send(f"**{player}** joined the server!")
+            await channel.send(f"✅ **{player}** joined the server!")
         for player in left:
-            await channel.send(f"**{player}** left the server!")
+            await channel.send(f"❌ **{player}** left the server!")
 
         last_players = players
         await asyncio.sleep(MC_CHECK_INTERVAL)
-
-
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -100,7 +98,7 @@ def remove_and_add_role(interaction, role_name, role_group):
             await interaction.response.send_message(f"✅ Assigned role: **{role.name}**", ephemeral=True)
     return inner
 
-# --- Role Button System (Single Role) ---
+# --- Role Button System ---
 class CustomRoleButton(Button):
     def __init__(self, label, role_name, role_group):
         super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"role_{role_name}")
@@ -116,7 +114,7 @@ class RoleView(View):
         for label, name in roles:
             self.add_item(CustomRoleButton(label, name, role_group))
 
-# --- Multi-Role Button System (For Pronouns) ---
+# --- Multi-Role Button System ---
 class MultiRoleButton(Button):
     def __init__(self, label, role_name):
         super().__init__(style=discord.ButtonStyle.primary, label=label, custom_id=f"multi_{role_name}")
@@ -203,7 +201,6 @@ async def on_ready():
 
     asyncio.create_task(daily_shop_ping())
     asyncio.create_task(minecraft_monitor())
-
 
 @bot.event
 async def on_connect():
