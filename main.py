@@ -167,19 +167,21 @@ async def on_ready():
 async def on_message(message):
     if message.channel.id != MC_CHANNEL_ID:
         return
-    if message.author.bot:
+    if not message.author.bot:  # Only respond to bot messages
         return
 
-    content = message.content.lower()
+    content = message.content
     online, max_players = await get_mc_player_count()
 
-    if "joined the game" in content:
-        await message.channel.send(f"✅ {message.author.name} joined the server! ({online}/{max_players})")
-    elif "left the game" in content:
-        await message.channel.send(f"❌ {message.author.name} left the server! ({online}/{max_players})")
-    elif "server started" in content or "server is now online" in content:
+    if "joined the game" in content.lower():
+        player_name = content.split("joined the game")[0]
+        await message.channel.send(f"{player_name} joined the server! ({online}/{max_players})")
+    elif "left the game" in content.lower():
+        player_name = content.split("left the game")[0]
+        await message.channel.send(f"{player_name} left the server! ({online}/{max_players})")
+    elif "server started" in content.lower() or "server is now online" in content.lower():
         await message.channel.send("🔔 Server is now online!")
-    elif "server stopped" in content or "server is now offline" in content:
+    elif "server stopped" in content.lower() or "server is now offline" in content.lower():
         await message.channel.send("🔔 Server is now offline!")
 
 # --- Keep-Alive Web Server ---
