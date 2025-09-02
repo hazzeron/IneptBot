@@ -7,53 +7,7 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
-from mcstatus import JavaServer  # For Minecraft server monitoring
-
-# --- Minecraft monitor settings ---
-MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
-MC_CHANNEL_ID = 1412246563526279291  # Discord channel ID
-MC_CHECK_INTERVAL = 10  # seconds
-
-async def minecraft_monitor():
-    await bot.wait_until_ready()
-    print("🎮 Minecraft monitor task started")
-
-    channel = bot.get_channel(MC_CHANNEL_ID)
-    if not channel:
-        print(f"❌ Could not find channel with ID {MC_CHANNEL_ID}")
-        return
-
-    last_online = None
-    last_players = set()
-
-    while not bot.is_closed():
-        try:
-            server = JavaServer(MC_SERVER_IP)
-            status = await asyncio.to_thread(server.status)
-            online = True
-            players = set(p.name for p in getattr(status.players, "sample", []) or [])
-        except Exception:
-            online = False
-            players = set()
-
-        # Server online/offline change
-        if last_online is None:
-            last_online = online
-        elif online != last_online:
-            await channel.send(f"🔔 Server is now **{'online' if online else 'offline'}**!")
-            last_online = online
-
-        # Player joins/leaves
-        joined = players - last_players
-        left = last_players - players
-
-        for player in joined:
-            await channel.send(f"✅ **{player}** joined the server!")
-        for player in left:
-            await channel.send(f"❌ **{player}** left the server!")
-
-        last_players = players
-        await asyncio.sleep(MC_CHECK_INTERVAL)
+from mcstatus import JavaServer  # Added for Minecraft server monitoring
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -64,12 +18,13 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.members = True
-intents.presences = True
 bot = discord.Bot(intents=intents)
 
 # --- Constants ---
 GUILD_ID = 1386539630941175848
-CHANNEL_ID = 1396847461494034472
+CHANNEL_ID = 1396847461494034472  # val-stores channel ID
+MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
+MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -83,7 +38,7 @@ def remove_and_add_role(interaction, role_name, role_group):
         guild = interaction.guild
         role = discord.utils.get(guild.roles, name=role_name)
         if not role:
-            await interaction.response.send_message(f"❌ Role '{role_name}' not found. Ask an admin to create it.", ephemeral=True)
+            await interaction.response.send_message(f"❌ Role '{role_name}' not found.", ephemeral=True)
             return
 
         to_remove = [r for r in interaction.user.roles if r.name in role_group and r != role]
@@ -185,6 +140,15 @@ async def set_streaming_presence():
         url="https://www.twitch.tv/ineptateverything"
     ))
 
+# --- Helper: Get Minecraft Player Count ---
+async def get_mc_player_count():
+    try:
+        server = JavaServer(MC_SERVER_IP)
+        status = await asyncio.to_thread(server.status)
+        return status.players.online, status.players.max
+    except Exception:
+        return 0, 0
+
 # --- Events ---
 @bot.event
 async def on_ready():
@@ -198,47 +162,25 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-    # Start tasks
-    asyncio.create_task(daily_shop_ping())
-    asyncio.create_task(minecraft_monitor())
-
+# --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
-async def on_connect():
-    await set_streaming_presence()
-
-# --- Scheduled Task: Daily Ping ---
-async def daily_shop_ping():
-    await bot.wait_until_ready()
-    print("⏱️ Daily ping task started")
-
-    guild = bot.get_guild(GUILD_ID)
-    if not guild:
-        print("❌ Guild not found.")
+async def on_message(message):
+    if message.channel.id != MC_CHANNEL_ID:
+        return
+    if message.author.bot:
         return
 
-    try:
-        channel = await bot.fetch_channel(CHANNEL_ID)
-    except Exception as e:
-        print(f"❌ Failed to fetch channel: {e}")
-        return
+    content = message.content.lower()
+    online, max_players = await get_mc_player_count()
 
-    role = discord.utils.get(guild.roles, name="Shop ping")
-    if not role:
-        print("❌ Role 'Shop ping' not found.")
-        return
-
-    sent_today = False
-    while not bot.is_closed():
-        now = datetime.now(timezone.utc)
-        if now.hour == 0 and now.minute == 0 and not sent_today:
-            try:
-                await channel.send(f"|| {role.mention} || \nShop has reset!")
-                sent_today = True
-            except Exception as e:
-                print(f"❌ Failed to send daily shop ping: {e}")
-        elif now.hour != 0:
-            sent_today = False
-        await asyncio.sleep(60)
+    if "joined the game" in content:
+        await message.channel.send(f"✅ {message.author.name} joined the server! ({online}/{max_players})")
+    elif "left the game" in content:
+        await message.channel.send(f"❌ {message.author.name} left the server! ({online}/{max_players})")
+    elif "server started" in content or "server is now online" in content:
+        await message.channel.send("🔔 Server is now online!")
+    elif "server stopped" in content or "server is now offline" in content:
+        await message.channel.send("🔔 Server is now offline!")
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
