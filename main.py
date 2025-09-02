@@ -7,6 +7,55 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
+from mcstatus import MinecraftServer
+
+# Minecraft monitor settings
+MC_SERVER_IP = "atom.aternos.org"  # your server IP or hostname
+MC_CHANNEL_ID = 1412246563526279291  # channel ID where updates will be sent
+MC_CHECK_INTERVAL = 5  # seconds
+
+async def minecraft_monitor():
+    await bot.wait_until_ready()
+    print("🎮 Minecraft monitor task started")
+
+    channel = bot.get_channel(MC_CHANNEL_ID)
+    if not channel:
+        print(f"❌ Could not find channel with ID {MC_CHANNEL_ID}")
+        return
+
+    last_online = None
+    last_players = set()
+
+    while not bot.is_closed():
+        try:
+            server = MinecraftServer.lookup(MC_SERVER_IP)
+            status = server.status()
+            online = True
+            players = set(p.name for p in status.players.sample or [])
+        except Exception:
+            online = False
+            players = set()
+
+        # Server online/offline status change
+        if last_online is None:
+            last_online = online
+        elif online != last_online:
+            await channel.send(f"Server is now **{'online' if online else 'offline'}**!")
+            last_online = online
+
+        # Player join/leave detection
+        joined = players - last_players
+        left = last_players - players
+
+        for player in joined:
+            await channel.send(f"**{player}** joined the server!")
+        for player in left:
+            await channel.send(f"**{player}** left the server!")
+
+        last_players = players
+        await asyncio.sleep(MC_CHECK_INTERVAL)
+
+
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -152,6 +201,8 @@ async def on_ready():
     bot.add_view(DailyPingView())
 
     asyncio.create_task(daily_shop_ping())
+    asyncio.create_task(minecraft_monitor())
+
 
 @bot.event
 async def on_connect():
