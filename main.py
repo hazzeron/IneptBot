@@ -7,12 +7,12 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
-from mcstatus import JavaServer  # updated for mcstatus v11+
+from mcstatus import JavaServer  # For Minecraft server monitoring
 
 # --- Minecraft monitor settings ---
-MC_SERVER_IP = "atom.aternos.org"  # your server IP or hostname
+MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
 MC_CHANNEL_ID = 1412246563526279291  # Discord channel ID
-MC_CHECK_INTERVAL = 5  # seconds
+MC_CHECK_INTERVAL = 10  # seconds
 
 async def minecraft_monitor():
     await bot.wait_until_ready()
@@ -29,7 +29,6 @@ async def minecraft_monitor():
     while not bot.is_closed():
         try:
             server = JavaServer(MC_SERVER_IP)
-            # Run blocking status call in a thread
             status = await asyncio.to_thread(server.status)
             online = True
             players = set(p.name for p in getattr(status.players, "sample", []) or [])
@@ -37,7 +36,7 @@ async def minecraft_monitor():
             online = False
             players = set()
 
-        # Server online/offline changes
+        # Server online/offline change
         if last_online is None:
             last_online = online
         elif online != last_online:
@@ -69,8 +68,8 @@ intents.presences = True
 bot = discord.Bot(intents=intents)
 
 # --- Constants ---
-GUILD_ID = 1386539630941175848  # Your server ID
-CHANNEL_ID = 1396847461494034472  # Your target text channel ID
+GUILD_ID = 1386539630941175848
+CHANNEL_ID = 1396847461494034472
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -88,8 +87,8 @@ def remove_and_add_role(interaction, role_name, role_group):
             return
 
         to_remove = [r for r in interaction.user.roles if r.name in role_group and r != role]
-
         await interaction.user.remove_roles(*to_remove)
+
         if role in interaction.user.roles:
             await interaction.user.remove_roles(role)
             await interaction.response.send_message(f"🗑️ Removed role: **{role.name}**", ephemeral=True)
@@ -124,7 +123,7 @@ class MultiRoleButton(Button):
         guild = interaction.guild
         role = discord.utils.get(guild.roles, name=self.role_name)
         if not role:
-            await interaction.response.send_message(f"❌ Role '{self.role_name}' not found. Ask an admin to create it.", ephemeral=True)
+            await interaction.response.send_message(f"❌ Role '{self.role_name}' not found.", ephemeral=True)
             return
 
         if role in interaction.user.roles:
@@ -140,7 +139,7 @@ class MultiRoleView(View):
         for label, name in roles:
             self.add_item(MultiRoleButton(label, name))
 
-# --- Daily shop ping ---
+# --- Daily Shop Ping ---
 class DailyPingButton(Button):
     def __init__(self):
         super().__init__(style=discord.ButtonStyle.primary, label="Get Daily Ping", custom_id="daily_ping_button")
@@ -149,7 +148,7 @@ class DailyPingButton(Button):
         guild = interaction.guild
         role = discord.utils.get(guild.roles, name="Shop ping")
         if not role:
-            await interaction.response.send_message("❌ Role 'Shop ping' not found. Ask an admin to create it.", ephemeral=True)
+            await interaction.response.send_message("❌ Role 'Shop ping' not found.", ephemeral=True)
             return
 
         if role in interaction.user.roles:
@@ -199,6 +198,7 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
+    # Start tasks
     asyncio.create_task(daily_shop_ping())
     asyncio.create_task(minecraft_monitor())
 
@@ -213,20 +213,13 @@ async def daily_shop_ping():
 
     guild = bot.get_guild(GUILD_ID)
     if not guild:
-        print("❌ Guild not found. Check GUILD_ID and if the bot is in the server.")
+        print("❌ Guild not found.")
         return
 
     try:
         channel = await bot.fetch_channel(CHANNEL_ID)
-        print(f"📨 Found channel: {channel.name} ({channel.id})")
-    except discord.NotFound:
-        print("❌ Channel not found. Check if the bot has access to the channel ID.")
-        return
-    except discord.Forbidden:
-        print("❌ Bot lacks permission to access the channel.")
-        return
-    except discord.HTTPException as e:
-        print(f"❌ HTTP error while fetching channel: {e}")
+    except Exception as e:
+        print(f"❌ Failed to fetch channel: {e}")
         return
 
     role = discord.utils.get(guild.roles, name="Shop ping")
@@ -235,20 +228,16 @@ async def daily_shop_ping():
         return
 
     sent_today = False
-
     while not bot.is_closed():
         now = datetime.now(timezone.utc)
-
         if now.hour == 0 and now.minute == 0 and not sent_today:
             try:
                 await channel.send(f"|| {role.mention} || \nShop has reset!")
-                print(f"✅ Daily shop ping sent at {now.isoformat()}")
                 sent_today = True
             except Exception as e:
                 print(f"❌ Failed to send daily shop ping: {e}")
         elif now.hour != 0:
             sent_today = False
-
         await asyncio.sleep(60)
 
 # --- Keep-Alive Web Server ---
