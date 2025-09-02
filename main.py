@@ -6,8 +6,7 @@ from dotenv import load_dotenv
 import discord
 from aiohttp import web
 from discord.ui import Button, View
-from datetime import datetime, timezone
-from mcstatus import JavaServer  # Added for Minecraft server monitoring
+from mcstatus import JavaServer
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -24,7 +23,7 @@ bot = discord.Bot(intents=intents)
 GUILD_ID = 1386539630941175848
 CHANNEL_ID = 1396847461494034472  # val-stores channel ID
 MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
-MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
+MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -167,22 +166,33 @@ async def on_ready():
 async def on_message(message):
     if message.channel.id != MC_CHANNEL_ID:
         return
-    if not message.author.bot:  # Only respond to bot messages
+    if not message.author.bot:  # Only handle DiscordSRV messages
         return
 
     content = message.content
+    lc_content = content.lower()
     online, max_players = await get_mc_player_count()
 
-    if "joined the game" in content.lower():
-        player_name = content.split("joined the game")[0]
-        await message.channel.send(f"{player_name} joined the server! ({online}/{max_players})")
-    elif "left the game" in content.lower():
-        player_name = content.split("left the game")[0]
-        await message.channel.send(f"{player_name} left the server! ({online}/{max_players})")
-    elif "server started" in content.lower() or "server is now online" in content.lower():
-        await message.channel.send("🔔 Server is now online!")
-    elif "server stopped" in content.lower() or "server is now offline" in content.lower():
-        await message.channel.send("🔔 Server is now offline!")
+    edited_content = None
+
+    if "joined the game" in lc_content:
+        player_name = content.split(" joined the game")[0]
+        edited_content = f"✅ {player_name} joined the server! ({online}/{max_players})"
+    elif "left the game" in lc_content:
+        player_name = content.split(" left the game")[0]
+        edited_content = f"❌ {player_name} left the server! ({online}/{max_players})"
+    elif "server started" in lc_content or "server is now online" in lc_content:
+        edited_content = "🔔 Server is now online!"
+    elif "server stopped" in lc_content or "server is now offline" in lc_content:
+        edited_content = "🔔 Server is now offline!"
+
+    if edited_content:
+        try:
+            # Edit original DiscordSRV message
+            await message.edit(content=edited_content)
+        except discord.Forbidden:
+            # Fallback: send new message if edit not allowed
+            await message.channel.send(edited_content)
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
