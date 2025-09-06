@@ -7,6 +7,7 @@ import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
+from mcstatus import JavaServer  # Added for Minecraft server monitoring
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -20,9 +21,10 @@ intents.members = True
 bot = discord.Bot(intents=intents)
 
 # --- Constants ---
-GUILD_ID = 1386539630941175848 
-CHANNEL_ID = 1396847461494034472  #val-stores channel ID
-MC_CHANNEL_ID = 1412246563526279291  #minecraft-status ID
+GUILD_ID = 1386539630941175848
+CHANNEL_ID = 1396847461494034472  # val-stores channel ID
+MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
+MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -138,6 +140,15 @@ async def set_streaming_presence():
         url="https://www.twitch.tv/ineptateverything"
     ))
 
+# --- Helper: Get Minecraft Player Count ---
+async def get_mc_player_count():
+    try:
+        server = JavaServer(MC_SERVER_IP)
+        status = await asyncio.to_thread(server.status)
+        return status.players.online, status.players.max
+    except Exception:
+        return 0, 0
+
 # --- Events ---
 @bot.event
 async def on_ready():
@@ -151,21 +162,21 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-# --- DiscordSRV Event Listener ---
+# --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
 async def on_message(message):
-    # Only process messages in the DiscordSRV Minecraft channel
     if message.channel.id != MC_CHANNEL_ID:
         return
     if message.author.bot:
         return
 
     content = message.content.lower()
+    online, max_players = await get_mc_player_count()
 
     if "joined the game" in content:
-        await message.channel.send(f"✅ {content}")
+        await message.channel.send(f"✅ {message.author.name} joined the server! ({online}/{max_players})")
     elif "left the game" in content:
-        await message.channel.send(f"❌ {content}")
+        await message.channel.send(f"❌ {message.author.name} left the server! ({online}/{max_players})")
     elif "server started" in content or "server is now online" in content:
         await message.channel.send("🔔 Server is now online!")
     elif "server stopped" in content or "server is now offline" in content:
