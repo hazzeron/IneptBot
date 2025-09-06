@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import discord
 from aiohttp import web
 from discord.ui import Button, View
-from mcstatus import JavaServer
+from datetime import datetime, timezone
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -20,10 +20,9 @@ intents.members = True
 bot = discord.Bot(intents=intents)
 
 # --- Constants ---
-GUILD_ID = 1386539630941175848
-CHANNEL_ID = 1396847461494034472  # val-stores channel ID
-MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
-MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP
+GUILD_ID = 1386539630941175848 
+CHANNEL_ID = 1396847461494034472  #val-stores channel ID
+MC_CHANNEL_ID = 1412246563526279291  #minecraft-status ID
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -139,15 +138,6 @@ async def set_streaming_presence():
         url="https://www.twitch.tv/ineptateverything"
     ))
 
-# --- Helper: Get Minecraft Player Count ---
-async def get_mc_player_count():
-    try:
-        server = JavaServer(MC_SERVER_IP)
-        status = await asyncio.to_thread(server.status)
-        return status.players.online, status.players.max
-    except Exception:
-        return 0, 0
-
 # --- Events ---
 @bot.event
 async def on_ready():
@@ -161,26 +151,25 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-# --- DiscordSRV Event Listener for Join/Leave Only ---
+# --- DiscordSRV Event Listener ---
 @bot.event
 async def on_message(message):
-    # Only monitor the Minecraft status channel
+    # Only process messages in the DiscordSRV Minecraft channel
     if message.channel.id != MC_CHANNEL_ID:
         return
-    # Only process messages sent by webhooks (DiscordSRV)
-    if not message.webhook_id:
+    if message.author.bot:
         return
 
-    content = message.content
-    lc_content = content.lower()
-    online, max_players = await get_mc_player_count()
+    content = message.content.lower()
 
-    if "joined the game" in lc_content:
-        player_name = content.split(" joined the game")[0]
-        await message.channel.send(f"✅ {player_name} joined the server! ({online}/{max_players})")
-    elif "left the game" in lc_content:
-        player_name = content.split(" left the game")[0]
-        await message.channel.send(f"❌ {player_name} left the server! ({online}/{max_players})")
+    if "joined the game" in content:
+        await message.channel.send(f"✅ {content}")
+    elif "left the game" in content:
+        await message.channel.send(f"❌ {content}")
+    elif "server started" in content or "server is now online" in content:
+        await message.channel.send("🔔 Server is now online!")
+    elif "server stopped" in content or "server is now offline" in content:
+        await message.channel.send("🔔 Server is now offline!")
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
