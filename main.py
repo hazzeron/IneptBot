@@ -1,13 +1,14 @@
 import os
 import signal
 import asyncio
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 import discord
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
-from mcstatus import JavaServer  # Added for Minecraft server monitoring
+from mcstatus import JavaServer
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -165,21 +166,24 @@ async def on_ready():
 # --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
 async def on_message(message):
-    if message.channel.id != MC_CHANNEL_ID:
-        return
-    if message.author.bot:
+    if message.channel.id != MC_CHANNEL_ID or message.author.bot:
         return
 
-    content = message.content.lower()
+    content = message.content
     online, max_players = await get_mc_player_count()
 
-    if "joined the game" in content:
-        await message.channel.send(f"✅ {message.author.name} joined the server! ({online}/{max_players})")
-    elif "left the game" in content:
-        await message.channel.send(f"❌ {message.author.name} left the server! ({online}/{max_players})")
-    elif "server started" in content or "server is now online" in content:
+    join_match = re.search(r"\*\*(.+?)\*\* joined the server", content)
+    leave_match = re.search(r"\*\*(.+?)\*\* left the server", content)
+
+    if join_match:
+        player = join_match.group(1)
+        await message.channel.send(f"✅ {player} joined the server! ({online}/{max_players})")
+    elif leave_match:
+        player = leave_match.group(1)
+        await message.channel.send(f"❌ {player} left the server! ({online}/{max_players})")
+    elif "server started" in content.lower() or "server is now online" in content.lower():
         await message.channel.send("🔔 Server is now online!")
-    elif "server stopped" in content or "server is now offline" in content:
+    elif "server stopped" in content.lower() or "server is now offline" in content.lower():
         await message.channel.send("🔔 Server is now offline!")
 
 # --- Keep-Alive Web Server ---
