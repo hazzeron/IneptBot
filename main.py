@@ -25,7 +25,7 @@ bot = discord.Bot(intents=intents)
 GUILD_ID = 1386539630941175848
 CHANNEL_ID = 1396847461494034472  # val-stores channel ID
 MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
-MC_SERVER_IP = "atom.aternos.org"  # Minecraft server IP or hostname
+MC_SERVER_IP = "atom.aternos.me"  # Minecraft server IP or hostname
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -124,54 +124,36 @@ async def daily_shop_ping():
     await bot.wait_until_ready()
     print("⏱️ Daily ping task started")
 
-    # Get guild
     guild = bot.get_guild(GUILD_ID)
     if not guild:
-        print("❌ Guild not found. Check GUILD_ID and if the bot is in the server.")
+        print("❌ Guild not found. Check GUILD_ID.")
         return
 
-    # Get channel
     try:
         channel = await bot.fetch_channel(CHANNEL_ID)
         print(f"📨 Found channel: {channel.name} ({channel.id})")
-    except discord.NotFound:
-        print("❌ Channel not found. Check if the bot has access to the channel ID.")
-        return
-    except discord.Forbidden:
-        print("❌ Bot lacks permission to access the channel.")
-        return
-    except discord.HTTPException as e:
-        print(f"❌ HTTP error while fetching channel: {e}")
+    except Exception as e:
+        print(f"❌ Error fetching channel: {e}")
         return
 
-    # Get role
     role = discord.utils.get(guild.roles, name="Shop ping")
     if not role:
         print("❌ Role 'Shop ping' not found.")
         return
 
-    # Main loop
     sent_today = False
-    RESET_HOUR_UTC = 0    # Change this if shop reset is not at 00:00 UTC
-    RESET_MINUTE = 0
-
     while not bot.is_closed():
         now = datetime.now(timezone.utc)
-
-        if now.hour == RESET_HOUR_UTC and now.minute == RESET_MINUTE and not sent_today:
+        if now.hour == 0 and now.minute == 0 and not sent_today:
             try:
                 await channel.send(f"||{role.mention}||\nShop has reset!")
                 print(f"✅ Daily shop ping sent at {now.isoformat()}")
                 sent_today = True
             except Exception as e:
                 print(f"❌ Failed to send daily shop ping: {e}")
-
-        elif now.hour != RESET_HOUR_UTC:
-            # Reset flag for the next day
+        elif now.hour != 0:
             sent_today = False
-
-        await asyncio.sleep(20)  # check every 20s instead of every 60 to be safer
-
+        await asyncio.sleep(20)
 
 # --- Slash Commands ---
 @bot.slash_command(description="Send the Daily ping role option")
@@ -217,6 +199,8 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
+    asyncio.create_task(daily_shop_ping())
+
 # --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
 async def on_message(message):
@@ -226,8 +210,8 @@ async def on_message(message):
     content = message.content
     online, max_players = await get_mc_player_count()
 
-    join_match = re.search(r"\*\*(.+?)\*\* joined the server", content)
-    leave_match = re.search(r"\*\*(.+?)\*\* left the server", content)
+    join_match = re.search(r"(.+?) joined the server", content)
+    leave_match = re.search(r"(.+?) left the server", content)
 
     if join_match:
         player = join_match.group(1)
