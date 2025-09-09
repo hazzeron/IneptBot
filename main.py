@@ -146,7 +146,7 @@ async def daily_shop_ping():
         now = datetime.now(timezone.utc)
         if now.hour == 0 and now.minute == 0 and not sent_today:
             try:
-                await channel.send(f"||{role.mention}||\nShop has reset!")
+                await channel.send(f"||{role.mention}||\nShop has reset!")  # Spoilered mention
                 print(f"✅ Daily shop ping sent at {now.isoformat()}")
                 sent_today = True
             except Exception as e:
@@ -199,7 +199,10 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-    asyncio.create_task(daily_shop_ping())
+    # ✅ Prevent multiple daily_shop_ping loops
+    if not hasattr(bot, "daily_ping_started"):
+        asyncio.create_task(daily_shop_ping())
+        bot.daily_ping_started = True
 
 # --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
