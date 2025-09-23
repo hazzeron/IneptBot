@@ -183,7 +183,7 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
-# --- NEW Slash Command: Start Aternos Server ---
+# --- NEW Slash Command: Start Aternos Server (updated for python-aternos 3.0.6) ---
 @bot.slash_command(description="Start the Minecraft server if it is offline")
 @discord.commands.cooldown(1, 300, discord.commands.BucketType.guild)  # 1 use per 5 min per guild
 async def startserver(ctx: discord.ApplicationContext):
@@ -192,20 +192,18 @@ async def startserver(ctx: discord.ApplicationContext):
         return await ctx.respond("❌ Aternos library not installed on the bot.")
 
     try:
-        def create_and_login():
-            client = AternosClient()
-            client.login(os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-            return client
+        # Initialize client and login
+        client = AternosClient()
+        await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
 
-        client = await run_blocking(create_and_login)
+        # Get the first server
+        servers = await run_blocking(client.list_servers)
+        if not servers:
+            return await ctx.respond("❌ No servers found for this account.")
+        server = servers[0]
 
-        def get_server(c):
-            servers = c.list_servers()
-            return servers[0]
-
-        server = await run_blocking(get_server, client)
-
-        status = getattr(server, "status", None)
+        # Check server status
+        status = await run_blocking(lambda: getattr(server, "status", None))
         is_online = (isinstance(status, str) and status.lower() == "online") or bool(status)
 
         if is_online:
@@ -275,13 +273,10 @@ async def on_message(message):
     elif "server stopped" in content.lower() or "server is now offline" in content.lower():
         await message.channel.send("🔔 Server is now offline!")
 
-# --- Server start message ---
-
+# --- Error Handling ---
 @bot.event
 async def on_application_command_error(ctx: discord.ApplicationContext, error):
-    # Check if the error is a CommandOnCooldown (slash command cooldown)
     if isinstance(error, discord.ApplicationCommandOnCooldown):
-        # error.retry_after gives the remaining cooldown in seconds
         retry_seconds = int(error.retry_after)
         minutes, seconds = divmod(retry_seconds, 60)
         if minutes > 0:
@@ -289,9 +284,7 @@ async def on_application_command_error(ctx: discord.ApplicationContext, error):
         else:
             await ctx.respond(f"⏳ Please wait {seconds}s before starting the server again.", ephemeral=True)
     else:
-        # For any other errors, print to console
         print(f"❌ Command error: {error}")
-
 
 # --- Keep-Alive Web Server ---
 async def handle(request):

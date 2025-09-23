@@ -3,4 +3,4 @@ python-dotenv
 aiohttp
 pytz
 mcstatus>=12.0.5
-python-aternos==0.6.1
+python-aternos==3.0.6
