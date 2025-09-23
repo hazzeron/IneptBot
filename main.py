@@ -192,40 +192,38 @@ startserver_cooldowns = {}
 async def startserver(ctx: discord.ApplicationContext):
     guild_id = ctx.guild.id
     now = time()
-
-    # Check cooldown (5 minutes per guild)
+    
     if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
         remaining = int(300 - (now - startserver_cooldowns[guild_id]))
         await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
         return
-
-    # Update last use time
+    
     startserver_cooldowns[guild_id] = now
-
     await ctx.defer()
+    
     if AternosClient is None:
         return await ctx.respond("❌ Aternos library not installed on the bot.")
-
+    
     try:
         client = AternosClient()
         await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-        servers = await run_blocking(client.list_servers)
+        servers = client.servers  # <-- fixed here
         if not servers:
             return await ctx.respond("❌ No servers found for this account.")
+        
         server = servers[0]
-
-        status = await run_blocking(lambda: getattr(server, "status", None))
-        is_online = (isinstance(status, str) and status.lower() == "online") or bool(status)
-
+        is_online = server.status.lower() == "online" if isinstance(server.status, str) else bool(server.status)
+        
         if is_online:
             return await ctx.respond("❌ Server already online")
-
+        
         await ctx.respond("⏳ Server offline. Sending start command...")
         await run_blocking(server.start)
         await ctx.send_followup("✅ Start command sent. Server should boot shortly!")
-
+    
     except Exception as e:
         await ctx.respond(f"❌ Failed to start server: {e}")
+
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
