@@ -207,7 +207,9 @@ async def startserver(ctx: discord.ApplicationContext):
     try:
         client = AternosClient()
         await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-        servers = client.servers  # <-- fixed here
+        
+        # --- Fix for python-aternos v3 ---
+        servers = await run_blocking(client.list_servers)
         if not servers:
             return await ctx.respond("❌ No servers found for this account.")
         
@@ -223,7 +225,6 @@ async def startserver(ctx: discord.ApplicationContext):
     
     except Exception as e:
         await ctx.respond(f"❌ Failed to start server: {e}")
-
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
