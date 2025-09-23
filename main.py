@@ -9,6 +9,7 @@ from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
 from mcstatus import JavaServer
+from functools import partial
 
 # --- Load environment variables ---
 load_dotenv(Path('.') / '.env')
@@ -32,6 +33,18 @@ RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "A
 REGION_ROLE_NAMES = ["Europe", "North America", "South America", "Africa", "Asia", "Middle East", "Oceania"]
 AGE_ROLE_NAMES = ["13", "14-17", "18+"]
 PRONOUN_ROLE_NAMES = ["she", "her", "he", "him", "they", "them"]
+
+# --- Aternos Client Import ---
+try:
+    from python_aternos import Client as AternosClient
+except Exception:
+    AternosClient = None
+
+async def run_blocking(fn, *args, **kwargs):
+    """Run blocking code in an executor."""
+    loop = asyncio.get_event_loop()
+    p = partial(fn, *args, **kwargs)
+    return await loop.run_in_executor(None, p)
 
 # --- Utility: Assign/Remove Roles ---
 def remove_and_add_role(interaction, role_name, role_group):
@@ -170,6 +183,41 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
+# --- NEW Slash Command: Start Aternos Server ---
+@bot.slash_command(description="Start the Minecraft server if it is offline")
+@discord.commands.cooldown(1, 300, discord.commands.BucketType.guild)  # 1 use per 5 min per guild
+async def startserver(ctx: discord.ApplicationContext):
+    await ctx.defer()
+    if AternosClient is None:
+        return await ctx.respond("❌ Aternos library not installed on the bot.")
+
+    try:
+        def create_and_login():
+            client = AternosClient()
+            client.login(os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
+            return client
+
+        client = await run_blocking(create_and_login)
+
+        def get_server(c):
+            servers = c.list_servers()
+            return servers[0]
+
+        server = await run_blocking(get_server, client)
+
+        status = getattr(server, "status", None)
+        is_online = (isinstance(status, str) and status.lower() == "online") or bool(status)
+
+        if is_online:
+            return await ctx.respond("❌ Server already online")
+
+        await ctx.respond("⏳ Server offline. Sending start command...")
+        await run_blocking(server.start)
+        await ctx.send_followup("✅ Start command sent. Server should boot shortly!")
+
+    except Exception as e:
+        await ctx.respond(f"❌ Failed to start server: {e}")
+
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
     await bot.change_presence(activity=discord.Streaming(
@@ -226,6 +274,24 @@ async def on_message(message):
         await message.channel.send("🔔 Server is now online!")
     elif "server stopped" in content.lower() or "server is now offline" in content.lower():
         await message.channel.send("🔔 Server is now offline!")
+
+# --- Server start message ---
+
+@bot.event
+async def on_application_command_error(ctx: discord.ApplicationContext, error):
+    # Check if the error is a CommandOnCooldown (slash command cooldown)
+    if isinstance(error, discord.ApplicationCommandOnCooldown):
+        # error.retry_after gives the remaining cooldown in seconds
+        retry_seconds = int(error.retry_after)
+        minutes, seconds = divmod(retry_seconds, 60)
+        if minutes > 0:
+            await ctx.respond(f"⏳ Please wait {minutes}m {seconds}s before starting the server again.", ephemeral=True)
+        else:
+            await ctx.respond(f"⏳ Please wait {seconds}s before starting the server again.", ephemeral=True)
+    else:
+        # For any other errors, print to console
+        print(f"❌ Command error: {error}")
+
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
