@@ -161,7 +161,7 @@ async def daily_shop_ping():
         now = datetime.now(timezone.utc)
         if now.hour == 0 and now.minute == 0 and not sent_today:
             try:
-                await channel.send(f"||{role.mention}||\nShop has reset!")  # Spoilered mention
+                await channel.send(f"||{role.mention}||\nShop has reset!")
                 print(f"✅ Daily shop ping sent at {now.isoformat()}")
                 sent_today = True
             except Exception as e:
@@ -185,44 +185,44 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
-# --- NEW Slash Command: Start Aternos Server (per-guild cooldown) ---
+# --- Slash Command: Start Aternos Server ---
 startserver_cooldowns = {}
 
 @bot.slash_command(description="Start the Minecraft server if it is offline")
 async def startserver(ctx: discord.ApplicationContext):
     guild_id = ctx.guild.id
     now = time()
-    
+
     if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
         remaining = int(300 - (now - startserver_cooldowns[guild_id]))
         await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
         return
-    
+
     startserver_cooldowns[guild_id] = now
     await ctx.defer()
-    
+
     if AternosClient is None:
         return await ctx.respond("❌ Aternos library not installed on the bot.")
-    
+
     try:
         client = AternosClient()
         await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
         
-        # --- Fix for python-aternos v3 ---
+        # ✅ Use list_servers() properly
         servers = await run_blocking(client.list_servers)
         if not servers:
             return await ctx.respond("❌ No servers found for this account.")
-        
+
         server = servers[0]
         is_online = server.status.lower() == "online" if isinstance(server.status, str) else bool(server.status)
-        
+
         if is_online:
             return await ctx.respond("❌ Server already online")
-        
+
         await ctx.respond("⏳ Server offline. Sending start command...")
         await run_blocking(server.start)
         await ctx.send_followup("✅ Start command sent. Server should boot shortly!")
-    
+
     except Exception as e:
         await ctx.respond(f"❌ Failed to start server: {e}")
 
