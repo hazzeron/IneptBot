@@ -3,8 +3,10 @@ import signal
 import asyncio
 import re
 from pathlib import Path
+from time import time
 from dotenv import load_dotenv
 import discord
+from discord.ext import commands
 from aiohttp import web
 from discord.ui import Button, View
 from datetime import datetime, timezone
@@ -40,8 +42,8 @@ try:
 except Exception:
     AternosClient = None
 
+# --- Utility to run blocking code asynchronously ---
 async def run_blocking(fn, *args, **kwargs):
-    """Run blocking code in an executor."""
     loop = asyncio.get_event_loop()
     p = partial(fn, *args, **kwargs)
     return await loop.run_in_executor(None, p)
@@ -183,26 +185,35 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
-# --- NEW Slash Command: Start Aternos Server (updated for python-aternos 3.0.6) ---
+# --- NEW Slash Command: Start Aternos Server (per-guild cooldown) ---
+startserver_cooldowns = {}
+
 @bot.slash_command(description="Start the Minecraft server if it is offline")
-@discord.commands.cooldown(1, 300, discord.commands.BucketType.guild)  # 1 use per 5 min per guild
 async def startserver(ctx: discord.ApplicationContext):
+    guild_id = ctx.guild.id
+    now = time()
+
+    # Check cooldown (5 minutes per guild)
+    if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
+        remaining = int(300 - (now - startserver_cooldowns[guild_id]))
+        await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
+        return
+
+    # Update last use time
+    startserver_cooldowns[guild_id] = now
+
     await ctx.defer()
     if AternosClient is None:
         return await ctx.respond("❌ Aternos library not installed on the bot.")
 
     try:
-        # Initialize client and login
         client = AternosClient()
         await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-
-        # Get the first server
         servers = await run_blocking(client.list_servers)
         if not servers:
             return await ctx.respond("❌ No servers found for this account.")
         server = servers[0]
 
-        # Check server status
         status = await run_blocking(lambda: getattr(server, "status", None))
         is_online = (isinstance(status, str) and status.lower() == "online") or bool(status)
 
@@ -245,12 +256,10 @@ async def on_ready():
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
 
-    # ✅ Prevent multiple daily_shop_ping loops
     if not hasattr(bot, "daily_ping_started"):
         asyncio.create_task(daily_shop_ping())
         bot.daily_ping_started = True
 
-# --- DiscordSRV Event Listener with Player Counts ---
 @bot.event
 async def on_message(message):
     if message.channel.id != MC_CHANNEL_ID or message.author.bot:
@@ -276,7 +285,7 @@ async def on_message(message):
 # --- Error Handling ---
 @bot.event
 async def on_application_command_error(ctx: discord.ApplicationContext, error):
-    if isinstance(error, discord.ApplicationCommandOnCooldown):
+    if isinstance(error, commands.CommandOnCooldown):
         retry_seconds = int(error.retry_after)
         minutes, seconds = divmod(retry_seconds, 60)
         if minutes > 0:
