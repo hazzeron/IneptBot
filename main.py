@@ -171,22 +171,7 @@ async def daily_shop_ping():
             sent_today = False
         await asyncio.sleep(20)
 
-# --- Slash Commands ---
-@bot.slash_command(description="Send the Daily ping role option")
-async def dailyping(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-
-    embed = discord.Embed(
-        title="Daily ping",
-        description="Press the button to get notified each time the Valorant store resets",
-        color=discord.Color.purple()
-    )
-
-    await ctx.channel.send(embed=embed, view=DailyPingView())
-    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
-
-# --- NEW Slash Command: Start Aternos Server ---
+# --- Start Aternos Server ---
 startserver_cooldowns = {}
 
 @bot.slash_command(description="Start the Minecraft server if it is offline")
