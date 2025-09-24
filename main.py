@@ -161,7 +161,7 @@ async def daily_shop_ping():
         now = datetime.now(timezone.utc)
         if now.hour == 0 and now.minute == 0 and not sent_today:
             try:
-                await channel.send(f"||{role.mention}||\nShop has reset!")
+                await channel.send(f"||{role.mention}||\nShop has reset!")  # Spoilered mention
                 print(f"✅ Daily shop ping sent at {now.isoformat()}")
                 sent_today = True
             except Exception as e:
@@ -192,43 +192,47 @@ startserver_cooldowns = {}
 async def startserver(ctx: discord.ApplicationContext):
     guild_id = ctx.guild.id
     now = time()
-    
-    # Cooldown check (5 minutes)
+
+    # Cooldown check
     if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
         remaining = int(300 - (now - startserver_cooldowns[guild_id]))
         await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
         return
-    
+
     startserver_cooldowns[guild_id] = now
     await ctx.defer()
-    
+
     if AternosClient is None:
         return await ctx.respond("❌ Aternos library not installed on the bot.")
-    
+
     try:
         client = AternosClient()
-        # Login using username and password from .env
         await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-        
-        # Access servers via account
-        servers = client.account.servers
+        print("✅ Logged in successfully!")
+
+        servers = await run_blocking(client.account.list_servers)
+
         if not servers:
+            print("❌ No servers found for this account.")
             return await ctx.respond("❌ No servers found for this account.")
-        
+
+        print("🌐 Servers found:")
+        for idx, s in enumerate(servers, 1):
+            print(f"{idx}. {s.address} | Status: {s.status}")
+
         server = servers[0]
-        
-        # Check if server is online
         is_online = server.status.lower() == "online" if isinstance(server.status, str) else bool(server.status)
+
         if is_online:
             return await ctx.respond("❌ Server already online")
-        
+
         await ctx.respond("⏳ Server offline. Sending start command...")
         await run_blocking(server.start)
         await ctx.send_followup("✅ Start command sent. Server should boot shortly!")
-    
-    except Exception as e:
-        await ctx.respond(f"❌ Failed to start server: {e}")
 
+    except Exception as e:
+        print(f"❌ Error while starting server: {e}")
+        await ctx.respond(f"❌ Failed to start server: {e}")
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
