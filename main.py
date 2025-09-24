@@ -14,7 +14,8 @@ from mcstatus import JavaServer
 from functools import partial
 
 # --- Load environment variables ---
-load_dotenv(Path('.') / '.env')
+dotenv_path = Path("C:/Users/harry/desktop/ineptbot/.env")
+load_dotenv(dotenv_path)
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # --- Discord Bot Setup ---
@@ -185,7 +186,7 @@ async def dailyping(ctx: discord.ApplicationContext):
     await ctx.channel.send(embed=embed, view=DailyPingView())
     await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
 
-# --- NEW Slash Command: Start Aternos Server (per-guild cooldown) ---
+# --- NEW Slash Command: Start Aternos Server ---
 startserver_cooldowns = {}
 
 @bot.slash_command(description="Start the Minecraft server if it is offline")
@@ -193,46 +194,54 @@ async def startserver(ctx: discord.ApplicationContext):
     guild_id = ctx.guild.id
     now = time()
 
-    # Cooldown check
     if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
         remaining = int(300 - (now - startserver_cooldowns[guild_id]))
         await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
         return
 
     startserver_cooldowns[guild_id] = now
-    await ctx.defer()
+    await ctx.defer(ephemeral=True)
 
     if AternosClient is None:
-        return await ctx.respond("❌ Aternos library not installed on the bot.")
+        return await ctx.respond("❌ python-aternos library not installed.", ephemeral=True)
+
+    username = os.getenv("ATERNOS_USER")
+    password = os.getenv("ATERNOS_PASS")
+
+    if not (username and password):
+        return await ctx.respond(
+            "❌ Set ATERNOS_USER and ATERNOS_PASS in your .env",
+            ephemeral=True
+        )
 
     try:
         client = AternosClient()
-        await run_blocking(client.login, os.getenv("ATERNOS_USER"), os.getenv("ATERNOS_PASS"))
-        print("✅ Logged in successfully!")
+        await run_blocking(client.login, username, password)
 
         servers = await run_blocking(client.account.list_servers)
-
         if not servers:
-            print("❌ No servers found for this account.")
-            return await ctx.respond("❌ No servers found for this account.")
-
-        print("🌐 Servers found:")
-        for idx, s in enumerate(servers, 1):
-            print(f"{idx}. {s.address} | Status: {s.status}")
+            return await ctx.respond(
+                "❌ No servers found for this account.\n• Make sure the account is the owner of the server.",
+                ephemeral=True
+            )
 
         server = servers[0]
-        is_online = server.status.lower() == "online" if isinstance(server.status, str) else bool(server.status)
 
-        if is_online:
-            return await ctx.respond("❌ Server already online")
+        # Safe start logic
+        try:
+            await run_blocking(server.start)
+            msg = "✅ Start command sent successfully! Server should boot shortly."
+        except Exception as e:
+            err_str = str(e).lower()
+            if "already online" in err_str or "sorry" in err_str:
+                msg = "⚠️ Server is already online or cannot be started right now."
+            else:
+                msg = f"❌ Error starting server: {e}"
 
-        await ctx.respond("⏳ Server offline. Sending start command...")
-        await run_blocking(server.start)
-        await ctx.send_followup("✅ Start command sent. Server should boot shortly!")
+        await ctx.respond(msg, ephemeral=True)
 
     except Exception as e:
-        print(f"❌ Error while starting server: {e}")
-        await ctx.respond(f"❌ Failed to start server: {e}")
+        await ctx.respond(f"❌ Failed to connect to Aternos: {e}", ephemeral=True)
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
