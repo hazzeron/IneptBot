@@ -138,7 +138,7 @@ class DailyPingView(View):
 # --- Live Ping Role ---
 class LivePingButton(Button):
     def __init__(self):
-        super().__init__(style=discord.ButtonStyle.success, label="Get Live Ping", custom_id="live_ping_button")
+        super().__init__(style=discord.ButtonStyle.primary, label="Get Live Ping", custom_id="live_ping_button")
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
