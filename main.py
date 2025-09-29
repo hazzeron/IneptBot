@@ -135,6 +135,30 @@ class DailyPingView(View):
         super().__init__(timeout=None)
         self.add_item(DailyPingButton())
 
+# --- Live Ping Role ---
+class LivePingButton(Button):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.success, label="Get Live Ping", custom_id="live_ping_button")
+
+    async def callback(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        role = discord.utils.get(guild.roles, name="Live ping")
+        if not role:
+            await interaction.response.send_message("❌ Role 'Live ping' not found.", ephemeral=True)
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role)
+            await interaction.response.send_message("🗑️ Removed role: **Live ping**", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message("✅ Added role: **Live ping**", ephemeral=True)
+
+class LivePingView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(LivePingButton())
+
 # --- Scheduled Task: Daily Ping ---
 async def daily_shop_ping():
     await bot.wait_until_ready()
@@ -170,6 +194,35 @@ async def daily_shop_ping():
         elif now.hour != 0:
             sent_today = False
         await asyncio.sleep(20)
+
+# --- Slash Commands ---
+@bot.slash_command(description="Send the Daily ping role option")
+async def dailyping(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Daily ping",
+        description="Press the button to get notified each time the Valorant store resets",
+        color=discord.Color.purple()
+    )
+
+    await ctx.channel.send(embed=embed, view=DailyPingView())
+    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
+
+@bot.slash_command(description="Send the Live ping role option")
+async def liveping(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Live ping",
+        description="Press the button to get notified each time the server goes live",
+        color=discord.Color.green()
+    )
+
+    await ctx.channel.send(embed=embed, view=LivePingView())
+    await ctx.respond("✅ Live ping selector sent!", ephemeral=True)
 
 # --- Start Aternos Server ---
 startserver_cooldowns = {}
@@ -212,7 +265,6 @@ async def startserver(ctx: discord.ApplicationContext):
 
         server = servers[0]
 
-        # Safe start logic
         try:
             await run_blocking(server.start)
             msg = "✅ Start command sent successfully! Server should boot shortly."
@@ -256,6 +308,7 @@ async def on_ready():
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
+    bot.add_view(LivePingView())  # ✅ NEW persistent view
 
     if not hasattr(bot, "daily_ping_started"):
         asyncio.create_task(daily_shop_ping())
