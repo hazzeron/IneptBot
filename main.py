@@ -252,35 +252,6 @@ async def startserver(ctx: discord.ApplicationContext):
     except Exception as e:
         await ctx.respond(f"❌ Failed to connect to Aternos: {e}", ephemeral=True)
 
-# --- Slash Commands ---
-@bot.slash_command(description="Send the Daily ping role option")
-async def dailyping(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-
-    embed = discord.Embed(
-        title="Daily ping",
-        description="Press the button to get notified each time the Valorant store resets",
-        color=discord.Color.purple()
-    )
-
-    await ctx.channel.send(embed=embed, view=DailyPingView())
-    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
-
-@bot.slash_command(description="Send the Live ping role option")
-async def liveping(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-
-    embed = discord.Embed(
-        title="Live ping",
-        description="Press the button to get notified each time Inept goes live",
-        color=discord.Color.purple()
-    )
-
-    await ctx.channel.send(embed=embed, view=LivePingView())
-    await ctx.respond("✅ Live ping selector sent!", ephemeral=True)
-
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
     await bot.change_presence(activity=discord.Streaming(
