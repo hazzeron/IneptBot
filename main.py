@@ -135,7 +135,7 @@ class DailyPingView(View):
         super().__init__(timeout=None)
         self.add_item(DailyPingButton())
 
-# --- Live Ping Role ---
+# --- Live Ping Button ---
 class LivePingButton(Button):
     def __init__(self):
         super().__init__(style=discord.ButtonStyle.primary, label="Get Live Ping", custom_id="live_ping_button")
@@ -195,35 +195,6 @@ async def daily_shop_ping():
             sent_today = False
         await asyncio.sleep(20)
 
-# --- Slash Commands ---
-@bot.slash_command(description="Send the Daily ping role option")
-async def dailyping(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-
-    embed = discord.Embed(
-        title="Daily ping",
-        description="Press the button to get notified each time the Valorant store resets",
-        color=discord.Color.purple()
-    )
-
-    await ctx.channel.send(embed=embed, view=DailyPingView())
-    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
-
-@bot.slash_command(description="Send the Live ping role option")
-async def liveping(ctx: discord.ApplicationContext):
-    if not ctx.author.guild_permissions.administrator:
-        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
-
-    embed = discord.Embed(
-        title="Live ping",
-        description="Press the button to get notified each time the server goes live",
-        color=discord.Color.green()
-    )
-
-    await ctx.channel.send(embed=embed, view=LivePingView())
-    await ctx.respond("✅ Live ping selector sent!", ephemeral=True)
-
 # --- Start Aternos Server ---
 startserver_cooldowns = {}
 
@@ -265,6 +236,7 @@ async def startserver(ctx: discord.ApplicationContext):
 
         server = servers[0]
 
+        # Safe start logic
         try:
             await run_blocking(server.start)
             msg = "✅ Start command sent successfully! Server should boot shortly."
@@ -279,6 +251,35 @@ async def startserver(ctx: discord.ApplicationContext):
 
     except Exception as e:
         await ctx.respond(f"❌ Failed to connect to Aternos: {e}", ephemeral=True)
+
+# --- Slash Commands ---
+@bot.slash_command(description="Send the Daily ping role option")
+async def dailyping(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Daily ping",
+        description="Press the button to get notified each time the Valorant store resets",
+        color=discord.Color.purple()
+    )
+
+    await ctx.channel.send(embed=embed, view=DailyPingView())
+    await ctx.respond("✅ Daily ping selector sent!", ephemeral=True)
+
+@bot.slash_command(description="Send the Live ping role option")
+async def liveping(ctx: discord.ApplicationContext):
+    if not ctx.author.guild_permissions.administrator:
+        return await ctx.respond("🚫 Insufficient Permissions.", ephemeral=True)
+
+    embed = discord.Embed(
+        title="Live ping",
+        description="Press the button to get notified each time the server goes live",
+        color=discord.Color.purple()
+    )
+
+    await ctx.channel.send(embed=embed, view=LivePingView())
+    await ctx.respond("✅ Live ping selector sent!", ephemeral=True)
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
@@ -308,7 +309,7 @@ async def on_ready():
     bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
     bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
     bot.add_view(DailyPingView())
-    bot.add_view(LivePingView())  # ✅ NEW persistent view
+    bot.add_view(LivePingView())
 
     if not hasattr(bot, "daily_ping_started"):
         asyncio.create_task(daily_shop_ping())
