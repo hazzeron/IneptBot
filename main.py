@@ -274,7 +274,7 @@ async def liveping(ctx: discord.ApplicationContext):
 
     embed = discord.Embed(
         title="Live ping",
-        description="Press the button to get notified each time the server goes live",
+        description="Press the button to get notified each time Inept goes live",
         color=discord.Color.purple()
     )
 
