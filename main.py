@@ -29,7 +29,7 @@ bot = discord.Bot(intents=intents)
 GUILD_ID = 1386539630941175848
 CHANNEL_ID = 1396847461494034472  # val-stores channel ID
 MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
-MC_SERVER_IP = "atom.aternos.me"  # Minecraft server IP or hostname
+# MC_SERVER_IP = ""  # Minecraft server IP or hostname
 
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
@@ -195,62 +195,6 @@ async def daily_shop_ping():
             sent_today = False
         await asyncio.sleep(20)
 
-# --- Start Aternos Server ---
-startserver_cooldowns = {}
-
-@bot.slash_command(description="Start the Minecraft server if it is offline")
-async def startserver(ctx: discord.ApplicationContext):
-    guild_id = ctx.guild.id
-    now = time()
-
-    if guild_id in startserver_cooldowns and now - startserver_cooldowns[guild_id] < 300:
-        remaining = int(300 - (now - startserver_cooldowns[guild_id]))
-        await ctx.respond(f"⏳ Please wait {remaining} seconds before starting the server again.", ephemeral=True)
-        return
-
-    startserver_cooldowns[guild_id] = now
-    await ctx.defer(ephemeral=True)
-
-    if AternosClient is None:
-        return await ctx.respond("❌ python-aternos library not installed.", ephemeral=True)
-
-    username = os.getenv("ATERNOS_USER")
-    password = os.getenv("ATERNOS_PASS")
-
-    if not (username and password):
-        return await ctx.respond(
-            "❌ Set ATERNOS_USER and ATERNOS_PASS in your .env",
-            ephemeral=True
-        )
-
-    try:
-        client = AternosClient()
-        await run_blocking(client.login, username, password)
-
-        servers = await run_blocking(client.account.list_servers)
-        if not servers:
-            return await ctx.respond(
-                "❌ No servers found for this account.\n• Make sure the account is the owner of the server.",
-                ephemeral=True
-            )
-
-        server = servers[0]
-
-        # Safe start logic
-        try:
-            await run_blocking(server.start)
-            msg = "✅ Start command sent successfully! Server should boot shortly."
-        except Exception as e:
-            err_str = str(e).lower()
-            if "already online" in err_str or "sorry" in err_str:
-                msg = "⚠️ Server is already online or cannot be started right now."
-            else:
-                msg = f"❌ Error starting server: {e}"
-
-        await ctx.respond(msg, ephemeral=True)
-
-    except Exception as e:
-        await ctx.respond(f"❌ Failed to connect to Aternos: {e}", ephemeral=True)
 
 # --- Streaming Status Handler ---
 async def set_streaming_presence():
@@ -307,19 +251,6 @@ async def on_message(message):
         await message.channel.send("🔔 Server is now online!")
     elif "server stopped" in content.lower() or "server is now offline" in content.lower():
         await message.channel.send("🔔 Server is now offline!")
-
-# --- Error Handling ---
-@bot.event
-async def on_application_command_error(ctx: discord.ApplicationContext, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        retry_seconds = int(error.retry_after)
-        minutes, seconds = divmod(retry_seconds, 60)
-        if minutes > 0:
-            await ctx.respond(f"⏳ Please wait {minutes}m {seconds}s before starting the server again.", ephemeral=True)
-        else:
-            await ctx.respond(f"⏳ Please wait {seconds}s before starting the server again.", ephemeral=True)
-    else:
-        print(f"❌ Command error: {error}")
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
