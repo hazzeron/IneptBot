@@ -31,6 +31,40 @@ CHANNEL_ID = 1396847461494034472  # val-stores channel ID
 MC_CHANNEL_ID = 1412246563526279291  # minecraft-status ID
 # not needed anymore MC_SERVER_IP = ""  # Minecraft server IP or hostname 
 
+# --- Channels ---
+VERIFY_CHANNEL_ID = 1411718666348794059
+WELCOME_CHANNEL_ID = 1386539632556249091
+RULES_CHANNEL_ID = 1386539632556249092
+LIVE_CHANNEL_ID = 1386539632556249094
+SCHEDULE_CHANNEL_ID = 1386539632556249095
+ROLES_CHANNEL_ID = 1386539632556249096
+
+GENERAL_CHANNEL_ID = 1386539632799256616
+MEMES_CHANNEL_ID = 1386539632799256617
+MEDIA_CHANNEL_ID = 1386539632799256622
+IDEAS_CHANNEL_ID = 1386539632799256620
+CLIPS_CHANNEL_ID = 1386539632799256625
+BOTCOMMANDS_CHANNEL_ID = 1386539632988258366
+VAL_STORES_CHANNEL_ID = 1396847461494034472
+SHAME_CHANNEL_ID = 1425875774812065812
+
+CHANNEL_IDS = {
+    "verify": VERIFY_CHANNEL_ID,
+    "welcome": WELCOME_CHANNEL_ID,
+    "rules": RULES_CHANNEL_ID,
+    "live": LIVE_CHANNEL_ID,
+    "schedule": SCHEDULE_CHANNEL_ID,
+    "roles": ROLES_CHANNEL_ID,
+    "general": GENERAL_CHANNEL_ID,
+    "memes": MEMES_CHANNEL_ID,
+    "media": MEDIA_CHANNEL_ID,
+    "ideas": IDEAS_CHANNEL_ID,
+    "clips": CLIPS_CHANNEL_ID,
+    "valstores": VAL_STORES_CHANNEL_ID,
+    "botcommands": BOTCOMMANDS_CHANNEL_ID,
+    "shame": SHAME_CHANNEL_ID,
+}
+
 # --- Role Groups ---
 RANK_ROLE_NAMES = ["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Ascendant", "Immortal", "Radiant"]
 REGION_ROLE_NAMES = ["Europe", "North America", "South America", "Africa", "Asia", "Middle East", "Oceania"]
@@ -228,27 +262,108 @@ async def on_ready():
         asyncio.create_task(daily_shop_ping())
         bot.daily_ping_started = True
 
-# @bot.event
-# async def on_message(message):
-#    if message.channel.id != MC_CHANNEL_ID or message.author.bot:
-#        return
+# --- Console Control Panel ---
 
-#    content = message.content
-#    online, max_players = await get_mc_player_count()
+async def console_control_panel():
+    await bot.wait_until_ready()
+    current_channel_id = CHANNEL_IDS["valstores"]
+    channel = bot.get_channel(current_channel_id) or await bot.fetch_channel(current_channel_id)
 
-#    join_match = re.search(r"(.+?) joined the server", content)
-#    leave_match = re.search(r"(.+?) left the server", content)
+    print(f"Console Control Panel Ready. Sending messages to #{channel.name}.")
+    print("Commands: /channel <name>, /role <role_name>, /embed, /exit")
+    loop = asyncio.get_running_loop()
+    role_mention = ""
 
-#    if join_match:
-#        player = join_match.group(1)
-#        await message.channel.send(f"✅ {player} joined the server! ({online}/{max_players})")
-#    elif leave_match:
-#        player = leave_match.group(1)
-#        await message.channel.send(f"❌ {player} left the server! ({online}/{max_players})")
-#    elif "server started" in content.lower() or "server is now online" in content.lower():
-#        await message.channel.send("🔔 Server is now online!")
-#    elif "server stopped" in content.lower() or "server is now offline" in content.lower():
-#        await message.channel.send("🔔 Server is now offline!")
+    while not bot.is_closed():
+        user_input = await loop.run_in_executor(None, input, "> ")
+
+        if user_input.startswith("/channel"):
+            parts = user_input.split(maxsplit=1)
+            if len(parts) == 2 and parts[1] in CHANNEL_IDS:
+                current_channel_id = CHANNEL_IDS[parts[1]]
+                channel = bot.get_channel(current_channel_id) or await bot.fetch_channel(current_channel_id)
+                print(f"Switched channel to #{channel.name}")
+            else:
+                print("Unknown channel. Available:", ", ".join(CHANNEL_IDS.keys()))
+            continue
+
+        if user_input.startswith("/role"):
+            parts = user_input.split(maxsplit=1)
+            if len(parts) == 2:
+                role_name = parts[1]
+                role = discord.utils.get(channel.guild.roles, name=role_name)
+                if role:
+                    role_mention = role.mention
+                    print(f"Role set to mention: {role.name}")
+                else:
+                    print(f"Role '{role_name}' not found.")
+            else:
+                print("Usage: /role <role_name>")
+            continue
+
+        if user_input.startswith("/embed"):
+            try:
+                title = await loop.run_in_executor(None, lambda: input("Embed Title: "))
+                description = await loop.run_in_executor(None, lambda: input("Embed Description (use \\n for line breaks): "))
+                author_name = await loop.run_in_executor(None, lambda: input("Author Name (leave blank if none): "))
+                footer_text = await loop.run_in_executor(None, lambda: input("Footer Text (leave blank if none): "))
+                thumbnail_url = await loop.run_in_executor(None, lambda: input("Thumbnail URL (leave blank if none): "))
+                image_url = await loop.run_in_executor(None, lambda: input("Image URL (leave blank if none): "))
+                timestamp_input = await loop.run_in_executor(None, lambda: input("Include timestamp? (y/n, default n): "))
+                color_input = await loop.run_in_executor(None, lambda: input("Embed Color (hex, leave blank for blue): "))
+                buttons_input = await loop.run_in_executor(None, lambda: input("Attach buttons? (none / rank / region / age / pronouns / daily): "))
+
+                description = description.replace("\\n", "\n")
+
+                if color_input:
+                    try:
+                        color = discord.Color(int(color_input.strip("#"), 16))
+                    except Exception:
+                        print("Invalid color, using blue instead.")
+                        color = discord.Color.blue()
+                else:
+                    color = discord.Color.blue()
+
+                embed = discord.Embed(title=title, description=description, color=color)
+                if author_name:
+                    embed.set_author(name=author_name)
+                if footer_text:
+                    embed.set_footer(text=footer_text)
+                if thumbnail_url:
+                    embed.set_thumbnail(url=thumbnail_url)
+                if image_url:
+                    embed.set_image(url=image_url)
+                if timestamp_input.lower() == "y":
+                    embed.timestamp = datetime.utcnow()
+
+                view = None
+                if buttons_input.lower() == "rank":
+                    view = RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES)
+                elif buttons_input.lower() == "region":
+                    view = RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES)
+                elif buttons_input.lower() == "age":
+                    view = RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES)
+                elif buttons_input.lower() == "pronouns":
+                    view = MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES])
+                elif buttons_input.lower() == "daily":
+                    view = DailyPingView()
+
+                await channel.send(embed=embed, view=view)
+                print(f"✅ Embed sent to #{channel.name}")
+
+            except Exception as e:
+                print(f"❌ Failed to send embed: {e}")
+
+            continue
+
+        if user_input in ("/exit", "/quit"):
+            break
+
+        try:
+            await channel.send(user_input)
+        except Exception as e:
+            print(f"Failed to send: {e}")
+
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
