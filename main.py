@@ -370,6 +370,10 @@ async def on_ready():
         asyncio.create_task(console_control_panel())
         bot.console_started = True
 
+    if not hasattr(bot, "web_server_started"):
+        bot.loop.create_task(start_web_server())
+        bot.web_server_started = True
+
 
 # --- Keep-Alive Web Server ---
 async def handle(request):
@@ -386,22 +390,5 @@ async def start_web_server():
     print(f"🌐 Web server running on port {port}")
 
 # --- Entry Point ---
-async def main():
-    await start_web_server()
-    await bot.start(TOKEN)
-
-async def shutdown():
-    print("🛑 Shutdown signal received. Logging out...")
-    await bot.close()
-
-def handle_signal():
-    asyncio.create_task(shutdown())
-
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, handle_signal)
-    try:
-        loop.run_until_complete(main())
-    finally:
-        loop.close()
+    bot.run(TOKEN)
