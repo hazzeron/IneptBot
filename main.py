@@ -244,23 +244,7 @@ async def set_streaming_presence():
 #    except Exception:
 #        return 0, 0
 
-# --- Events ---
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
-    await bot.sync_commands()
-    await set_streaming_presence()
 
-    bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
-    bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
-    bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
-    bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
-    bot.add_view(DailyPingView())
-    bot.add_view(LivePingView())
-
-    if not hasattr(bot, "daily_ping_started"):
-        asyncio.create_task(daily_shop_ping())
-        bot.daily_ping_started = True
 
 # --- Console Control Panel ---
 
@@ -363,6 +347,28 @@ async def console_control_panel():
             await channel.send(user_input)
         except Exception as e:
             print(f"Failed to send: {e}")
+
+# --- Events ---
+@bot.event
+async def on_ready():
+    print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
+    await bot.sync_commands()
+    await set_streaming_presence()
+
+    bot.add_view(RoleView([(r, r) for r in RANK_ROLE_NAMES], RANK_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in REGION_ROLE_NAMES], REGION_ROLE_NAMES))
+    bot.add_view(RoleView([(r, r) for r in AGE_ROLE_NAMES], AGE_ROLE_NAMES))
+    bot.add_view(MultiRoleView([(r, r) for r in PRONOUN_ROLE_NAMES]))
+    bot.add_view(DailyPingView())
+    bot.add_view(LivePingView())
+
+    if not hasattr(bot, "daily_ping_started"):
+        asyncio.create_task(daily_shop_ping())
+        bot.daily_ping_started = True
+
+    if not hasattr(bot, "console_started"):
+        asyncio.create_task(console_control_panel())
+        bot.console_started = True
 
 
 # --- Keep-Alive Web Server ---
