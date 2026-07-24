@@ -18,7 +18,7 @@ primary_region = "lhr"
   internal_port = 8080
   force_https = true
   auto_stop_machines = false
-  auto_start_machines = true
+  auto_start_machines = false
   min_machines_running = 1
   processes = ["app"]
 
@@ -35,12 +35,3 @@ primary_region = "lhr"
   cpu_kind = "shared"
   cpus = 1
 
-[checks]
-  [checks.alive]
-    type = "http"
-    interval = "30s"
-    timeout = "5s"
-    path = "/"
-    grace_period = "10s"
-    method = "get"
-    protocol = "http"
