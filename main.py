@@ -368,7 +368,7 @@ async def on_ready():
 
     if not hasattr(bot, "console_started"):
         asyncio.create_task(console_control_panel())
-        bot.console_started = True 
+        bot.console_started = True
 
     if not hasattr(bot, "web_server_started"):
         bot.loop.create_task(start_web_server())
